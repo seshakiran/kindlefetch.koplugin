@@ -1,0 +1,23 @@
+.DS_Store
+/dist/
+*.part
+*.log
+.env
+.env.*
+!.env.example
+kindlefetch-diagnostics*.txt
+kindlefetch_*settings*.lua
+kindlefetch_*cache*.lua
+/native-readback/
+/verify-search/
+/device-check/
+/report-inbox/
+# Downloaded books and device exports do not belong in this source repository.
+*.epub
+*.pdf
+*.mobi
+*.azw
+*.azw3
+*.cbz
+*.cbr
+*.zip

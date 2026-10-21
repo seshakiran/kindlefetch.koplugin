@@ -1,0 +1,286 @@
+local Blitbuffer = require("ffi/blitbuffer")
+local Device = require("device")
+local FocusManager = require("ui/widget/focusmanager")
+local CenterContainer = require("ui/widget/container/centercontainer")
+local FrameContainer = require("ui/widget/container/framecontainer")
+local VerticalGroup = require("ui/widget/verticalgroup")
+local VerticalSpan = require("ui/widget/verticalspan")
+local HorizontalSpan = require("ui/widget/horizontalspan")
+local HorizontalGroup = require("ui/widget/horizontalgroup")
+local TextBoxWidget = require("ui/widget/textboxwidget")
+local TextWidget = require("ui/widget/textwidget")
+local ProgressWidget = require("ui/widget/progresswidget")
+local Button = require("ui/widget/button")
+local Font = require("ui/font")
+local Size = require("ui/size")
+local Geom = require("ui/geometry")
+local Screen = Device.screen
+local UIManager = require("ui/uimanager")
+local _ = require("gettext")
+
+local DownloadProgress = {}
+DownloadProgress.__index = DownloadProgress
+
+-- fixed width for the whole widget's contents to prevent overdrawing
+local CONTENT_WIDTH = Screen:scaleBySize(280)
+
+-- on_cancel: function called when the user taps Cancel. hidden: whether it starts out hidden, as when it's for the
+-- download of a book whose progress was hidden, which is trying again
+function DownloadProgress.new(title, on_cancel, hidden)
+    local self = setmetatable({}, DownloadProgress)
+
+    self.title = title
+    self.cancelled = false
+    self.on_cancel = on_cancel
+    self.is_visible = not hidden
+    self.percentage = 0
+    self.status_text = ""
+    self:build()
+
+    return self
+end
+
+-- create the widgets, again whenever shown after being hidden, as KOReader frees widgets once they're closed
+function DownloadProgress:build()
+    -- title
+    self.text_widget = TextBoxWidget:new {
+        text = self.title,
+        face = Font:getFace("cfont", 18),
+        width = CONTENT_WIDTH,
+        alignment = "center",
+    }
+
+    -- download percentage
+    self.status_widget = TextWidget:new {
+        text = self.status_text,
+        face = Font:getFace("cfont", 16),
+        width = CONTENT_WIDTH,
+        alignment = "center",
+    }
+
+    self.status_container = CenterContainer:new {
+        dimen = Geom:new {
+            w = CONTENT_WIDTH,
+            -- as tall as its text, whose font is bigger on screens with more dots to the inch
+            h = self.status_widget:getSize().h,
+        },
+        self.status_widget,
+    }
+
+    self.bar_widget = ProgressWidget:new {
+        width = CONTENT_WIDTH,
+        height = Screen:scaleBySize(16),
+        percentage = self.percentage,
+    }
+
+    -- cancel button
+    self.cancel_button = Button:new {
+        text = _("Cancel"),
+        enabled = self.cancellable ~= false,
+        callback = function()
+            self:cancel()
+        end,
+        padding = Size.padding.default,
+    }
+
+    -- hide button
+    self.hide_button = Button:new {
+        text = _("Hide"),
+        enabled = self.cancellable ~= false,
+        callback = function()
+            self:toggleVisibility()
+        end,
+        padding = Size.padding.default,
+    }
+
+    -- button group
+    self.button_group = HorizontalGroup:new {
+        align = "center",
+        self.cancel_button,
+        HorizontalSpan:new {
+            width = Size.padding.default,
+        },
+        self.hide_button,
+    }
+
+    self.frame = FrameContainer:new {
+        background = Blitbuffer.COLOR_WHITE,
+        bordersize = Size.border.window,
+        padding = Size.padding.large,
+        width = CONTENT_WIDTH + Size.padding.large * 2,
+
+        VerticalGroup:new {
+            align = "center",
+            self.text_widget,
+            VerticalSpan:new {
+                width = Size.padding.default,
+            },
+            self.bar_widget,
+            VerticalSpan:new {
+                width = Size.padding.small,
+            },
+            self.status_container,
+            VerticalSpan:new {
+                width = Size.padding.large,
+            },
+            self.button_group,
+        },
+    }
+
+    -- with keys to move between its buttons and press them, on devices with them, and Back to hide it, which
+    -- couldn't be reached on those devices
+    local progress = self
+    self.container = FocusManager:new {
+        dimen = Geom:new {
+            w = Screen:getWidth(),
+            h = Screen:getHeight(),
+        },
+        layout = { { self.cancel_button, self.hide_button } },
+        CenterContainer:new {
+            dimen = Geom:new {
+                w = Screen:getWidth(),
+                h = Screen:getHeight(),
+            },
+            self.frame,
+        },
+    }
+    if Device:hasKeys() then
+        self.container.key_events = self.container.key_events or {}
+        self.container.key_events.Close = { { Device.input.group.Back } }
+    end
+    function self.container.onClose()
+        if progress.is_visible then
+            progress:toggleVisibility()
+        end
+        return true
+    end
+end
+
+-- show the widget, refreshing only the part of the screen it takes up, as a download refreshes it twice a second
+-- and an e-ink screen is slow to
+function DownloadProgress:_show()
+    UIManager:show(self.container)
+    UIManager:setDirty(self.container, function()
+        return "ui", self.frame.dimen
+    end)
+end
+
+-- take the widget off the screen, refreshing only where it was
+function DownloadProgress:_close()
+    local frame = self.frame
+    UIManager:close(self.container)
+    UIManager:setDirty(nil, function()
+        return "ui", frame.dimen
+    end)
+end
+
+function DownloadProgress:show()
+    if not self.is_visible then
+        return
+    end
+    self:_show()
+end
+
+-- toggle visibility of the progress widget
+function DownloadProgress:toggleVisibility()
+    self.is_visible = not self.is_visible
+    if self.is_visible then
+        self:build()
+        self:_show()
+    else
+        self:_close()
+    end
+end
+
+-- whether Cancel and Hide can be tapped, which they can't while what's waited for holds KOReader up (KOReader's own
+-- HTTP, see HttpUtil.canCancel), as taps on them would only arrive once it's over
+function DownloadProgress:setCancellable(cancellable)
+    self.cancellable = cancellable
+    for __, button in ipairs({ self.cancel_button, self.hide_button }) do
+        if cancellable then
+            button:enable()
+        else
+            button:disable()
+        end
+    end
+    if self.is_visible and not self.closed then
+        UIManager:setDirty(self.container, function()
+            return "ui", self.frame.dimen
+        end)
+    end
+end
+
+-- say what's being waited for for now, keeping how far it has got (see HttpUtil.sayStatus), straight away, as what's
+-- waited for may hold KOReader up. nil goes back to what it said before
+function DownloadProgress:setStatus(status_text)
+    if status_text then
+        self.status_before = self.status_before or self.status_text
+    else
+        status_text, self.status_before = self.status_before, nil
+    end
+    self:update(self.percentage or 0, status_text)
+    UIManager:forceRePaint()
+end
+
+-- update percentage text and force repaint
+function DownloadProgress:update(percentage, status_text)
+    if self.cancelled then
+        return
+    end
+
+    -- keep track of progress while hidden, for when it's shown again
+    local changed = percentage ~= self.percentage or (status_text ~= nil and status_text ~= self.status_text)
+    self.percentage = percentage
+    if status_text then
+        self.status_text = status_text
+    end
+    -- nothing to redraw when it's off screen, or says the same as it did
+    if not self.is_visible or not changed then
+        return
+    end
+
+    self.bar_widget.percentage = percentage
+    if status_text then
+        self.status_widget:setText(status_text)
+    end
+    UIManager:setDirty(self.container, function()
+        return "ui", self.frame.dimen
+    end)
+end
+
+function DownloadProgress:cancel()
+    -- prevent double cancel
+    if self.cancelled then
+        return
+    end
+    self.cancelled = true
+
+    -- trigger cancel function if exists
+    if self.on_cancel then
+        self.on_cancel()
+    end
+
+    self:close()
+
+    -- and stop waiting on what was being waited for, such as the download link being looked up. set by
+    -- Trapper:dismissablePopen, when the widget is what calls the wait off (see HttpUtil.setTrapWidget)
+    local dismiss = self.dismiss_callback
+    self.dismiss_callback = nil
+    if dismiss then
+        dismiss()
+    end
+end
+
+-- close the widget for good, once (what was being waited for may close it too, as it's cancelled)
+function DownloadProgress:close()
+    if self.closed then
+        return
+    end
+    self.closed = true
+    if not self.is_visible then
+        return
+    end
+    self:_close()
+end
+
+return DownloadProgress

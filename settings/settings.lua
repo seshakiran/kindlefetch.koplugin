@@ -1,0 +1,883 @@
+local LuaSettings = require("luasettings")
+local DataStorage = require("datastorage")
+local Device = require("device")
+local FileUtil = require("util.fileutil")
+local StringUtil = require("util.stringutil")
+local LogUtil = require("util.logutil")
+local lfs = require("libs/libkoreader-lfs")
+local _ = require("gettext")
+
+local KindleFetchSettings = {}
+
+-- default settings
+local DEFAULTS = {
+    show_book_covers = true,
+    check_for_updates = true,
+    -- looking the sites up with DNS over HTTPS (see CurlUtil.applyEncryptedDns), for networks whose own DNS blocks them
+    encrypted_dns = false,
+    search_cache_expiry_days = 14,
+    mirror_cache_expiry_days = 7,
+    download_dir = nil,
+    -- and every file type and book type, set below
+    preferred_languages = { "en" },
+    -- This build searches Z-Library only.
+    search_sources = { "zlib" },
+}
+
+-- available settings
+local AVAILABLE_LANGUAGES = {
+    {
+        text = "English",
+        code = "en",
+    },
+    {
+        text = "Spanish",
+        code = "es",
+    },
+    {
+        text = "French",
+        code = "fr",
+    },
+    {
+        text = "German",
+        code = "de",
+    },
+    {
+        text = "Italian",
+        code = "it",
+    },
+    {
+        text = "Portuguese",
+        code = "pt",
+    },
+    {
+        text = "Russian",
+        code = "ru",
+    },
+    {
+        text = "Chinese",
+        code = "zh",
+    },
+    {
+        text = "Japanese",
+        code = "ja",
+    },
+    {
+        text = "Dutch",
+        code = "nl",
+    },
+    {
+        text = "Bulgarian",
+        code = "bg",
+    },
+    {
+        text = "Polish",
+        code = "pl",
+    },
+    {
+        text = "Arabic",
+        code = "ar",
+    },
+    {
+        text = "Latin",
+        code = "la",
+    },
+    {
+        text = "Hebrew",
+        code = "he",
+    },
+    {
+        text = "Traditional Chinese",
+        code = "zh-Hant",
+    },
+    {
+        text = "Turkish",
+        code = "tr",
+    },
+    {
+        text = "Hungarian",
+        code = "hu",
+    },
+    {
+        text = "Czech",
+        code = "cs",
+    },
+    {
+        text = "Swedish",
+        code = "sv",
+    },
+    {
+        text = "Danish",
+        code = "da",
+    },
+    {
+        text = "Korean",
+        code = "ko",
+    },
+    {
+        text = "Ukrainian",
+        code = "uk",
+    },
+    {
+        text = "Indonesian",
+        code = "id",
+    },
+    {
+        text = "Greek",
+        code = "el",
+    },
+    {
+        text = "Romanian",
+        code = "ro",
+    },
+    {
+        text = "Lithuanian",
+        code = "lt",
+    },
+    {
+        text = "Bangla",
+        code = "bn",
+    },
+    {
+        text = "Catalan",
+        code = "ca",
+    },
+    {
+        text = "Norwegian",
+        code = "no",
+    },
+    {
+        text = "Afrikaans",
+        code = "af",
+    },
+    {
+        text = "Finnish",
+        code = "fi",
+    },
+    {
+        text = "Croatian",
+        code = "hr",
+    },
+    {
+        text = "Serbian",
+        code = "sr",
+    },
+    {
+        text = "Thai",
+        code = "th",
+    },
+    {
+        text = "Hindi",
+        code = "hi",
+    },
+    {
+        text = "Irish",
+        code = "ga",
+    },
+    {
+        text = "Latvian",
+        code = "lv",
+    },
+    {
+        text = "Persian",
+        code = "fa",
+    },
+    {
+        text = "Vietnamese",
+        code = "vi",
+    },
+    {
+        text = "Slovak",
+        code = "sk",
+    },
+    {
+        text = "Kannada",
+        code = "kn",
+    },
+    {
+        text = "Tibetan",
+        code = "bo",
+    },
+    {
+        text = "Welsh",
+        code = "cy",
+    },
+    {
+        text = "Javanese",
+        code = "jv",
+    },
+    {
+        text = "Urdu",
+        code = "ur",
+    },
+    {
+        text = "Yiddish",
+        code = "yi",
+    },
+    {
+        text = "Armenian",
+        code = "hy",
+    },
+    {
+        text = "Belarusian",
+        code = "be",
+    },
+    {
+        text = "Kinyarwanda",
+        code = "rw",
+    },
+    {
+        text = "Tamil",
+        code = "ta",
+    },
+    {
+        text = "Kazakh",
+        code = "kk",
+    },
+    {
+        text = "Slovenian",
+        code = "sl",
+    },
+    {
+        text = "Malayalam",
+        code = "ml",
+    },
+    {
+        text = "Shan",
+        code = "shn",
+    },
+    {
+        text = "Mongolian",
+        code = "mn",
+    },
+    {
+        text = "Georgian",
+        code = "ka",
+    },
+    {
+        text = "Marathi",
+        code = "mr",
+    },
+    {
+        text = "Esperanto",
+        code = "eo",
+    },
+    {
+        text = "Estonian",
+        code = "et",
+    },
+    {
+        text = "Telugu",
+        code = "te",
+    },
+    {
+        text = "Filipino",
+        code = "fil",
+    },
+    {
+        text = "Gujarati",
+        code = "gu",
+    },
+    {
+        text = "Galician",
+        code = "gl",
+    },
+    {
+        text = "Kyrgyz",
+        code = "ky",
+    },
+    {
+        text = "Malay",
+        code = "ms",
+    },
+    {
+        text = "Azerbaijani",
+        code = "az",
+    },
+    {
+        text = "Swahili",
+        code = "sw",
+    },
+    {
+        text = "Quechua",
+        code = "qu",
+    },
+    {
+        text = "Punjabi",
+        code = "pa",
+    },
+    {
+        text = "Bashkir",
+        code = "ba",
+    },
+    {
+        text = "Albanian",
+        code = "sq",
+    },
+    {
+        text = "Uzbek",
+        code = "uz",
+    },
+    {
+        text = "Bosnian",
+        code = "bs",
+    },
+    {
+        text = "Basque",
+        code = "eu",
+    },
+    {
+        text = "Burmese",
+        code = "my",
+    },
+    {
+        text = "Amharic",
+        code = "am",
+    },
+    {
+        text = "Kurdish",
+        code = "ku",
+    },
+    {
+        text = "Western Frisian",
+        code = "fy",
+    },
+    {
+        text = "Zulu",
+        code = "zu",
+    },
+    {
+        text = "Pashto",
+        code = "ps",
+    },
+    {
+        text = "Nepali",
+        code = "ne",
+    },
+    {
+        text = "Somali",
+        code = "so",
+    },
+    {
+        text = "Uyghur",
+        code = "ug",
+    },
+    {
+        text = "Oromo",
+        code = "om",
+    },
+    {
+        text = "Macedonian",
+        code = "mk",
+    },
+    {
+        text = "Haitian Creole",
+        code = "ht",
+    },
+    {
+        text = "Lao",
+        code = "lo",
+    },
+    {
+        text = "Tatar",
+        code = "tt",
+    },
+    {
+        text = "Sinhala",
+        code = "si",
+    },
+    {
+        text = "Central Kurdish",
+        code = "ckb",
+    },
+    {
+        text = "Tajik",
+        code = "tg",
+    },
+    {
+        text = "Shona",
+        code = "sn",
+    },
+    {
+        text = "Sundanese",
+        code = "su",
+    },
+    {
+        text = "Norwegian Bokmål",
+        code = "nb",
+    },
+    {
+        text = "Malagasy",
+        code = "mg",
+    },
+    {
+        text = "Xhosa",
+        code = "xh",
+    },
+    {
+        text = "Hausa",
+        code = "ha",
+    },
+    {
+        text = "Sindhi",
+        code = "sd",
+    },
+    {
+        text = "Nyanja",
+        code = "ny",
+    },
+}
+-- file types KOReader can open
+local EBOOK_FILE_TYPES = { "epub", "mobi", "azw", "fb2", "prc" }
+local COMIC_FILE_TYPES = { "cbr", "cbz" }
+local DOCUMENT_FILE_TYPES = { "pdf", "txt", "rtf", "doc", "docx", "odt", "djvu" }
+local IMAGE_FILE_TYPES = { "jpg", "tif", "pdb" }
+local WEB_FILE_TYPES = { "chm", "htm", "html", "htmlz" }
+local AVAILABLE_FILE_TYPES = {}
+for __, file_types in ipairs({
+    EBOOK_FILE_TYPES,
+    COMIC_FILE_TYPES,
+    DOCUMENT_FILE_TYPES,
+    IMAGE_FILE_TYPES,
+    WEB_FILE_TYPES,
+}) do
+    for __, file_type in ipairs(file_types) do
+        table.insert(AVAILABLE_FILE_TYPES, file_type)
+    end
+end
+-- Library Genesis topics
+local AVAILABLE_BOOK_TYPES = {
+    {
+        text = _("Fiction"),
+        code = "fiction",
+    },
+    {
+        text = _("Non-fiction"),
+        code = "nonfiction",
+    },
+    {
+        text = _("Comics"),
+        code = "comics",
+    },
+    {
+        text = _("Magazines"),
+        code = "magazines",
+    },
+    {
+        text = _("Scientific articles"),
+        code = "articles",
+    },
+    {
+        text = _("Standards"),
+        code = "standards",
+    },
+}
+-- by default, every kind of book in every file type KOReader can open (in English)
+DEFAULTS.preferred_file_types = {}
+for __, file_type in ipairs(AVAILABLE_FILE_TYPES) do
+    table.insert(DEFAULTS.preferred_file_types, file_type)
+end
+DEFAULTS.preferred_book_types = {}
+for __, book_type in ipairs(AVAILABLE_BOOK_TYPES) do
+    table.insert(DEFAULTS.preferred_book_types, book_type.code)
+end
+
+-- how long searches and mirrors can be cached for
+local AVAILABLE_CACHE_EXPIRY_DAYS = { 1, 3, 7, 14, 30 }
+-- book types saved when searching Anna's Archive
+local OLD_BOOK_TYPES = {
+    book_fiction = "fiction",
+    book_nonfiction = "nonfiction",
+    book_comic = "comics",
+    standards_document = "standards",
+}
+
+local function settingsPath()
+    return DataStorage:getSettingsDir() .. "/kindlefetch_settings.lua"
+end
+
+-- opened once and kept, as reading the file from storage for every setting is slow on an e-reader
+local cached_file
+local function getSettingsFile()
+    if not cached_file then
+        cached_file = LuaSettings:open(settingsPath())
+    end
+    return cached_file
+end
+
+local function sameSetting(a, b)
+    if type(a) ~= "table" or type(b) ~= "table" then
+        return a == b
+    end
+    if #a ~= #b then
+        return false
+    end
+    for i, value in ipairs(a) do
+        if value ~= b[i] then
+            return false
+        end
+    end
+    return true
+end
+
+-- fill in the settings that aren't saved yet, or were saved by an older version. this runs every time the file
+-- manager or a book is opened, so the file is only written when something changed
+function KindleFetchSettings:load()
+    local settings_file = getSettingsFile()
+    local changed = false
+    local function fill(name, value)
+        if not sameSetting(settings_file:readSetting(name), value) then
+            settings_file:saveSetting(name, value)
+            changed = true
+        end
+    end
+
+    -- (keeping one that has gone missing, as it may be back, e.g. on an SD card that has been taken out)
+    if not StringUtil.assertValidString(settings_file:readSetting("download_dir")) then
+        local download_dir = self:getDownloadDir()
+        if FileUtil.isValidDirectory(download_dir) then
+            fill("download_dir", download_dir)
+        end
+    end
+    fill("show_book_covers", self:getShowBookCovers())
+    fill("check_for_updates", self:getCheckForUpdates())
+    fill("search_cache_expiry_days", self:getSearchCacheExpiryDays())
+    fill("mirror_cache_expiry_days", self:getMirrorCacheExpiryDays())
+    fill("preferred_languages", self:getPreferredLanguages())
+    fill("preferred_file_types", self:getPreferredFileTypes())
+    fill("preferred_book_types", self:getPreferredBookTypes())
+
+    if changed then
+        settings_file:flush()
+        LogUtil.debug("saved the settings that were missing or out of date")
+    end
+end
+
+-- the type each setting is saved as, besides those with a default, which are saved as the default is
+local TYPES = {
+    last_version = "string",
+    last_update_check = "number",
+    skipped_version = "string",
+    recent_searches = "table",
+}
+
+-- the strings in a list, leaving out anything else, which a list of languages or searches is never saved with
+local function strings(list)
+    local kept = {}
+    for __, value in ipairs(list) do
+        if type(value) == "string" then
+            table.insert(kept, value)
+        end
+    end
+    return kept
+end
+
+-- util
+-- a setting as it's saved, or its default when it isn't, or is saved as something it can't be (e.g. by hand), which
+-- what reads it would fail on, possibly when KOReader starts, leaving the plugin out of the menu
+function KindleFetchSettings:getSetting(name)
+    local settings_file = getSettingsFile()
+    local value = settings_file:readSetting(name)
+
+    if value == nil then
+        return DEFAULTS[name]
+    end
+
+    local expected = DEFAULTS[name] ~= nil and type(DEFAULTS[name]) or TYPES[name]
+    if expected and type(value) ~= expected then
+        LogUtil.warn("ignoring", name, "as it's saved as a", type(value), "rather than a", expected)
+        return DEFAULTS[name]
+    end
+    -- the lists of languages, file types, book types and searches
+    if expected == "table" then
+        return strings(value)
+    end
+
+    return value
+end
+-- write the settings, with name set to data, returning true, or nil and why not. LuaSettings doesn't say when it
+-- couldn't write them (e.g. once the storage is full, or read-only), and they're read as they were before next time,
+-- so they're read back to tell
+local function flush(settings_file, name, data)
+    settings_file:flush()
+    if not sameSetting(LuaSettings:open(settingsPath()):readSetting(name), data) then
+        LogUtil.warn("could not save", name, "in", settingsPath())
+        return nil, _("Kindle Fetch's settings couldn't be saved")
+    end
+    return true
+end
+
+function KindleFetchSettings:setSetting(name, data)
+    local settings_file = getSettingsFile()
+    settings_file:saveSetting(name, data)
+    local ok, err = flush(settings_file, name, data)
+    if not ok then
+        return nil, err
+    end
+
+    if type(data) ~= "table" then
+        LogUtil.debug("updated", name, "to", data)
+    else
+        LogUtil.debug("updated", name, "to", table.concat(data, ", "))
+    end
+
+    return true
+end
+
+-- show_book_covers
+function KindleFetchSettings:getShowBookCovers()
+    return KindleFetchSettings:getSetting("show_book_covers")
+end
+function KindleFetchSettings:setShowBookCovers(bool)
+    return KindleFetchSettings:setSetting("show_book_covers", bool)
+end
+
+function KindleFetchSettings:getEncryptedDns()
+    return KindleFetchSettings:getSetting("encrypted_dns")
+end
+function KindleFetchSettings:setEncryptedDns(bool)
+    return KindleFetchSettings:setSetting("encrypted_dns", bool)
+end
+
+-- check_for_updates (automatically, once per session)
+function KindleFetchSettings:getCheckForUpdates()
+    return KindleFetchSettings:getSetting("check_for_updates")
+end
+function KindleFetchSettings:setCheckForUpdates(bool)
+    return KindleFetchSettings:setSetting("check_for_updates", bool)
+end
+
+-- search_cache_expiry_days / mirror_cache_expiry_days
+function KindleFetchSettings:getSearchCacheExpiryDays()
+    return KindleFetchSettings:getSetting("search_cache_expiry_days")
+end
+function KindleFetchSettings:setSearchCacheExpiryDays(days)
+    return KindleFetchSettings:setSetting("search_cache_expiry_days", days)
+end
+function KindleFetchSettings:getMirrorCacheExpiryDays()
+    return KindleFetchSettings:getSetting("mirror_cache_expiry_days")
+end
+function KindleFetchSettings:setMirrorCacheExpiryDays(days)
+    return KindleFetchSettings:setSetting("mirror_cache_expiry_days", days)
+end
+function KindleFetchSettings:getAvailableCacheExpiryDays()
+    return AVAILABLE_CACHE_EXPIRY_DAYS
+end
+
+-- last_version (plugin version the last time KOReader was started)
+function KindleFetchSettings:getLastVersion()
+    return KindleFetchSettings:getSetting("last_version")
+end
+function KindleFetchSettings:setLastVersion(version)
+    return KindleFetchSettings:setSetting("last_version", version)
+end
+
+-- last_update_check (when the latest release was last looked up, as the time in seconds)
+function KindleFetchSettings:getLastUpdateCheck()
+    return KindleFetchSettings:getSetting("last_update_check")
+end
+function KindleFetchSettings:setLastUpdateCheck(time)
+    return KindleFetchSettings:setSetting("last_update_check", time)
+end
+
+-- skipped_version (plugin version that updating to was turned down, so it isn't offered again automatically)
+function KindleFetchSettings:getSkippedVersion()
+    return KindleFetchSettings:getSetting("skipped_version")
+end
+function KindleFetchSettings:setSkippedVersion(version)
+    return KindleFetchSettings:setSetting("skipped_version", version)
+end
+
+-- curl_update_declined (the version of curl that updating to was turned down, so it isn't offered again
+-- automatically, until there's a newer one), or true, as older versions saved it, for whichever version it was
+function KindleFetchSettings:getCurlUpdateDeclined()
+    local declined = getSettingsFile():readSetting("curl_update_declined")
+    if declined == true or type(declined) == "string" then
+        return declined
+    end
+end
+-- or nil, once it's been updated
+function KindleFetchSettings:setCurlUpdateDeclined(version)
+    return KindleFetchSettings:setSetting("curl_update_declined", version or nil)
+end
+
+-- Ignore selections saved by earlier builds that included other sources.
+function KindleFetchSettings:getSearchSources()
+    return { "zlib" }
+end
+function KindleFetchSettings:setSearchSources(sources)
+    return KindleFetchSettings:setSetting("search_sources", { "zlib" })
+end
+
+-- recent_searches (what was last searched for, most recent first)
+local MAX_RECENT_SEARCHES = 10
+function KindleFetchSettings:getRecentSearches()
+    return KindleFetchSettings:getSetting("recent_searches") or {}
+end
+-- once each, whatever its capitals, as Library Genesis finds the same books either way
+function KindleFetchSettings:addRecentSearch(query)
+    local searches = { query }
+    for __, search in ipairs(self:getRecentSearches()) do
+        if search:lower() ~= query:lower() and #searches < MAX_RECENT_SEARCHES then
+            table.insert(searches, search)
+        end
+    end
+    return KindleFetchSettings:setSetting("recent_searches", searches)
+end
+function KindleFetchSettings:clearRecentSearches()
+    return KindleFetchSettings:setSetting("recent_searches", {})
+end
+
+-- zlib_account (the Z-Library account logged into: its email, and its user id and key, which log into it as the
+-- password does, and are kept instead)
+function KindleFetchSettings:getZlibAccount()
+    local account = KindleFetchSettings:getSetting("zlib_account")
+    if type(account) == "table" and account.user_id and account.user_key then
+        return account
+    end
+end
+-- or nil to forget it. not logged, as the key logs into the account
+function KindleFetchSettings:setZlibAccount(account)
+    local settings_file = getSettingsFile()
+    if account then
+        settings_file:saveSetting("zlib_account", {
+            email = account.email,
+            user_id = account.user_id,
+            user_key = account.user_key,
+        })
+    else
+        settings_file:delSetting("zlib_account")
+    end
+    local ok, err = flush(settings_file, "zlib_account", account and settings_file:readSetting("zlib_account"))
+    if not ok then
+        return nil, err
+    end
+    -- the settings as they were before (KOReader keeps them in case they can't be read), which would still log into
+    -- the account, and be read in place of these, if they ever can't be
+    if not account then
+        os.remove(settingsPath() .. ".old")
+    end
+    return true
+end
+
+-- download_dir, or the default while the folder saved can't be found (e.g. once deleted, or on an SD card that has
+-- been taken out), which is kept, as it may be back
+function KindleFetchSettings:getDownloadDir()
+    local settings_file = getSettingsFile()
+    local download_dir = settings_file:readSetting("download_dir")
+    if StringUtil.assertValidString(download_dir) and not FileUtil.isValidDirectory(download_dir) then
+        LogUtil.warn("the download folder", download_dir, "can't be found, so downloading to the default for now")
+        download_dir = nil
+    end
+
+    if not StringUtil.assertValidString(download_dir) then
+        download_dir = G_reader_settings:readSetting("home_dir") or ""
+
+        if download_dir == "" then
+            download_dir = "/mnt/us/documents"
+            LogUtil.warn("settings home directory not found, defaulting to", download_dir)
+        end
+
+        if not FileUtil.isValidDirectory(download_dir) then
+            -- home_dir is nil on some devices, so fall back to the koreader dir
+            download_dir = Device.home_dir or lfs.currentdir()
+            LogUtil.warn("documents directory does not exist, defaulting to device home directory", download_dir)
+        end
+    end
+
+    return download_dir
+end
+-- returns true, or nil and why books can't be saved in the folder (see FileUtil.checkWritableDir)
+function KindleFetchSettings:setDownloadDir(path)
+    local ok, err = FileUtil.checkWritableDir(path)
+    if not ok then
+        LogUtil.warn("not downloading to", path, "as", err)
+        return nil, err
+    end
+
+    local settings_file = getSettingsFile()
+    settings_file:saveSetting("download_dir", path)
+    local saved, save_err = flush(settings_file, "download_dir", path)
+    if not saved then
+        return nil, save_err
+    end
+    LogUtil.debug("download directory set to", path)
+    return true
+end
+
+-- preferred_languages
+function KindleFetchSettings:getPreferredLanguages()
+    return KindleFetchSettings:getSetting("preferred_languages")
+end
+function KindleFetchSettings:setPreferredLanguages(languages)
+    return KindleFetchSettings:setSetting("preferred_languages", languages)
+end
+function KindleFetchSettings:getAvailableLanguages()
+    return AVAILABLE_LANGUAGES
+end
+
+-- preferred_file_types
+-- only those still offered, e.g. dropping azw3 and the other types KOReader can't open
+function KindleFetchSettings:getPreferredFileTypes()
+    local saved = KindleFetchSettings:getSetting("preferred_file_types")
+    local file_types = {}
+    for __, file_type in ipairs(saved) do
+        for __, available in ipairs(AVAILABLE_FILE_TYPES) do
+            if available == file_type then
+                table.insert(file_types, file_type)
+            end
+        end
+    end
+
+    -- none of those chosen are offered any more, rather than every one being turned off
+    if #file_types == 0 and #saved > 0 then
+        return DEFAULTS.preferred_file_types
+    end
+    return file_types
+end
+function KindleFetchSettings:setPreferredFileTypes(file_types)
+    return KindleFetchSettings:setSetting("preferred_file_types", file_types)
+end
+function KindleFetchSettings:getEbookFileTypes()
+    return EBOOK_FILE_TYPES
+end
+function KindleFetchSettings:getComicFileTypes()
+    return COMIC_FILE_TYPES
+end
+function KindleFetchSettings:getDocumentFileTypes()
+    return DOCUMENT_FILE_TYPES
+end
+function KindleFetchSettings:getImageFileTypes()
+    return IMAGE_FILE_TYPES
+end
+function KindleFetchSettings:getWebFileTypes()
+    return WEB_FILE_TYPES
+end
+
+-- preferred_book_types
+function KindleFetchSettings:getPreferredBookTypes()
+    local saved = KindleFetchSettings:getSetting("preferred_book_types")
+    local book_types = {}
+    for __, book_type in ipairs(saved) do
+        book_type = OLD_BOOK_TYPES[book_type] or book_type
+        for __, available in ipairs(AVAILABLE_BOOK_TYPES) do
+            if available.code == book_type then
+                table.insert(book_types, book_type)
+            end
+        end
+    end
+
+    -- none of those chosen are offered any more, rather than every one being turned off
+    if #book_types == 0 and #saved > 0 then
+        return DEFAULTS.preferred_book_types
+    end
+    return book_types
+end
+function KindleFetchSettings:setPreferredBookTypes(book_types)
+    return KindleFetchSettings:setSetting("preferred_book_types", book_types)
+end
+function KindleFetchSettings:getAvailableBookTypes()
+    return AVAILABLE_BOOK_TYPES
+end
+
+return KindleFetchSettings
