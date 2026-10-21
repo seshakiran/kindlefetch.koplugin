@@ -10,7 +10,7 @@ This fixes 0.9.1's generic handoff, which used the normal local-download dialog 
 
 Completed or pending source imports are reused; uncertain jobs are held for review. Files survive restart in the reader's `kindlefetch-imports` data folder and remain linked local reading copies after import. This is a reader-staged upload, not server-side URL fetching. If the local copy is removed, a future read may need a real download. If the reader restarts during the flow, the upload queue remains durable; revisit the same result to complete its local-link/open handoff after a queued upload finishes.
 
-See the [patch/upgrade guide](https://github.com/seshakiran/bookorbit-reading-stack/blob/main/docs/PLUGINS.md#search-z-library-from-the-bookorbit-dashboard). The original BookOrbit 1.5.5 catalog and the previous search-only patch are both supported by exact hash checks. Automated tests cover the new route; physical-reader verification is a separate step.
+See the [patch/upgrade guide](https://github.com/seshakiran/bookorbit-reading-stack/blob/main/docs/PLUGINS.md#search-z-library-from-the-bookorbit-dashboard). The original BookOrbit 1.5.5 catalog and the previous search-only patch are both supported by exact hash checks. Automated tests cover the new route. On October 20, 2026, the user confirmed that an import uploads and opens on the originating Viwoods AiPaper Mini, and reopening it does not show another download prompt. All 55 deployed payload files matched the source on readback.
 
 ## Implemented
 

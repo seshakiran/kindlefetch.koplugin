@@ -31,14 +31,20 @@ A Z-Library-only plugin for KOReader, with direct downloads and native networkin
 
 Other providers are no longer registered or offered in search. Some unused provider modules remain from upstream; they are not active sources. Old saved “All” selections resolve to Z-Library only.
 
+| Start here | What happens | When the book opens |
+|---|---|---|
+| **BookOrbit → Search Z-Library** | Fetch to reader staging → upload to BookOrbit → link the local copy | After BookOrbit confirms the import; later opens reuse the same copy |
+| **Kindle Fetch → Search** | Save to your normal download folder; upload in the background if your auto-upload setting is on | Through the regular local reading flow |
+
 ```mermaid
-flowchart LR
-    A[Search in Kindle Fetch] --> B[Z-Library]
-    BO[BookOrbit dashboard: Search Z-Library] --> A
-    B --> C[Download to reader]
-    C --> D[Read in KOReader]
-    C --> E[Saved upload queue]
-    E --> F[Your BookOrbit library]
+flowchart TD
+    BO[BookOrbit: Search Z-Library] --> S[Fetch to reader staging]
+    S --> U[Upload to BookOrbit]
+    U --> C[Confirm import and link local copy]
+    C --> O[Open in KOReader]
+    KF[Kindle Fetch: Search] --> L[Save in normal download folder]
+    L --> R[Read locally]
+    L --> Q[Upload if auto-upload is enabled]
 ```
 
 ## Install
@@ -101,6 +107,8 @@ The regression suite uses mocked network and account dependencies. It covers nat
 Local live HTTP checks were also exercised during development. Those checks and the device deployment do not guarantee future Z-Library availability or API compatibility. See [CHANGELOG.md](CHANGELOG.md) for this fork's changes.
 
 ## Search and import from BookOrbit's dashboard
+
+**Verified on October 20, 2026:** the user confirmed on the originating Viwoods AiPaper Mini that the book uploads and opens, and opening it again does **not** show a second download prompt. Kindle Fetch **0.10.0** and the companion BookOrbit **1.5.5** catalog patch were installed; all **55** payload files matched the source on readback.
 
 With Kindle Fetch **0.10.0+** and the updated BookOrbit reader **1.5.5** patch, tap the dashboard's search icon and enter a title or author:
 
