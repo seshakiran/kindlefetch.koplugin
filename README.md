@@ -7,7 +7,7 @@
 A Z-Library-only plugin for KOReader, with direct downloads and native networking fixes for Android readers and background uploads to your BookOrbit library.
 
 [![Checks](https://github.com/seshakiran/kindlefetch.koplugin/actions/workflows/checks.yml/badge.svg)](https://github.com/seshakiran/kindlefetch.koplugin/actions/workflows/checks.yml)
-![Version](https://img.shields.io/badge/version-0.9.0-blue)
+![Version](https://img.shields.io/badge/version-0.9.1-blue)
 ![KOReader](https://img.shields.io/badge/reader-KOReader-333333)
 [![License: MIT](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 
@@ -97,6 +97,17 @@ python3 scripts/package.py
 The regression suite uses mocked network and account dependencies. It covers native DNS bootstrap, DNS response validation and caching, timeout restoration, bounded search-abort recovery, optional curl DNS fallback, the fixed Z-Library source/account behavior, BookOrbit session rotation, multipart streaming, and upload queue failure/recovery behavior. CI runs syntax and regression checks on **Lua 5.1 and 5.4** and builds the plugin package.
 
 Local live HTTP checks were also exercised during development. Those checks and the device deployment do not guarantee future Z-Library availability or API compatibility. See [CHANGELOG.md](CHANGELOG.md) for this fork's changes.
+
+## Search from BookOrbit's dashboard
+
+With Kindle Fetch **0.9.1+** and the optional BookOrbit reader search patch installed, tap the dashboard's search icon and enter a title or author:
+
+- **Search library** searches the existing BookOrbit library, preserving its scope and recent searches.
+- **Search Z-Library** starts the same Kindle Fetch search and download flow used by the standalone plugin. Its language/format preferences, Z-Library account, DNS fixes, and automatic BookOrbit uploads all apply.
+
+Closing the Kindle Fetch search returns to the BookOrbit catalog underneath. Search results use Kindle Fetch's existing reader UI; this is not a server-side search integration or a web-dashboard change. Both reader plugins must be installed and enabled. Z-Library search is disabled in the BookOrbit dialog when the handoff is unavailable.
+
+The [BookOrbit patch and installation guide](https://github.com/seshakiran/bookorbit-reading-stack/blob/main/docs/PLUGINS.md#search-z-library-from-the-bookorbit-dashboard) cover the reviewed BookOrbit reader plugin **1.5.5**. The patch does not copy account settings or embed credentials. A future BookOrbit plugin update can replace the patched catalog file; reapply only against a supported version.
 
 ## Send books to BookOrbit
 

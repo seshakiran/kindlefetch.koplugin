@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.9.1 — Search from the BookOrbit reader dashboard
+
+- Expose an optional in-process search handoff for the BookOrbit reader search dialog.
+- Reuse the existing Z-Library-only search, download, preferences, and automatic upload behavior.
+- Validate queries and remove only the current reader instance’s handoff during teardown.
+- Publish a compatible BookOrbit 1.5.5 catalog patch in the companion deployment repository.
+
 ## 0.9.0 — BookOrbit uploads
 
 - Add native BookOrbit website sign-in, rotating sessions, and library selection.

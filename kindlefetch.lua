@@ -17,6 +17,7 @@ local Sources = require("api.sources")
 local MultiSearch = require("api.multisearch")
 local Downloader = require("api.downloader")
 local BookOrbitQueue = require("api.bookorbitqueue")
+local BookOrbitSearch = require("util.bookorbitsearch")
 local HttpUtil = require("util.httputil")
 local LogUtil = require("util.logutil")
 local NotifyUtil = require("util.notifyutil")
@@ -116,6 +117,7 @@ end
 -- when the device is powered off or restarted, its storage is shared over USB (which curl would carry on writing
 -- to), or it's quit from the file manager, each of which only sends Close (as closing a book doesn't)
 function KindleFetch:onExit()
+    BookOrbitSearch.unregister(self.bookorbit_search_handler)
     BookOrbitQueue.stop()
     if #Downloader:getActiveDownloads() > 0 then
         LogUtil.info("cancelling downloads, as KOReader is closing")
@@ -207,6 +209,9 @@ function KindleFetch:init()
     -- load settings
     KindleFetchSettings:load()
     latest = self
+    self.bookorbit_search_handler = BookOrbitSearch.register(function(query)
+        self:setupUI(query, nil, { "zlib" }, true)
+    end)
     Guard.scheduleIn(0.2, "resuming BookOrbit uploads", BookOrbitQueue.onResume, Guard.quiet)
 
     if not version_checked then

@@ -2,6 +2,10 @@
 
 Version **0.9.0** implements a native BookOrbit client and persistent upload queue. Device sign-in and a destination library are required before files can be sent. Network/account availability still determines whether a live transfer succeeds.
 
+## Dashboard search entry point
+
+Kindle Fetch **0.9.1** adds an in-process search handoff consumed by an optional BookOrbit reader plugin **1.5.5** patch. The dashboard search dialog keeps BookOrbit library search and adds **Search Z-Library**, using Kindle Fetch’s existing account, filters, native networking, direct download, and upload queue. Closing the search returns to the underlying catalog. This changes the reader UI; it does not change BookOrbit web search or server APIs. See the [patch guide](https://github.com/seshakiran/bookorbit-reading-stack/blob/main/docs/PLUGINS.md#search-z-library-from-the-bookorbit-dashboard).
+
 ## Implemented
 
 - Reuse the server URL saved by the installed BookOrbit plugin; keep its sync credentials separate.

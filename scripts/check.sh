@@ -16,3 +16,4 @@ find api cache settings ui updater util tests -name '*.lua' -exec sh -c '
 "$LUA_BIN" tests/bookorbit_client_test.lua
 "$LUA_BIN" tests/bookorbit_queue_test.lua
 "$LUA_BIN" tests/bookorbit_store_test.lua
+"$LUA_BIN" tests/bookorbit_search_test.lua
