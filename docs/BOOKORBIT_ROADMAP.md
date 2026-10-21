@@ -2,11 +2,15 @@
 
 Version **0.9.0** implements a native BookOrbit client and persistent upload queue. Device sign-in and a destination library are required before files can be sent. Network/account availability still determines whether a live transfer succeeds.
 
-## Dashboard search entry point
+## Dashboard import route (0.10.0)
 
-Kindle Fetch **0.9.1** adds an in-process search handoff consumed by an optional BookOrbit reader plugin **1.5.5** patch. The dashboard search dialog keeps BookOrbit library search and adds **Search Z-Library**, using Kindle Fetch’s existing account, filters, native networking, direct download, and upload queue. Closing the search returns to the underlying catalog. This changes the reader UI; it does not change BookOrbit web search or server APIs. See the [patch guide](https://github.com/seshakiran/bookorbit-reading-stack/blob/main/docs/PLUGINS.md#search-z-library-from-the-bookorbit-dashboard).
+The updated BookOrbit reader patch passes an explicit import context and completion callback. A selected Z-Library result is fetched into persistent staging, uploaded exactly once, and handed back only after the saved queue record contains a confirmed BookOrbit book ID. The authenticated catalog identifies the uploaded file; BookOrbit persists its IDs and the retained local reading path before opening that same copy. Future Open/Continue taps reuse the association.
 
-The originating reader now has the 0.9.1 handoff and compatible catalog patch installed; all 54 deployed files were verified by readback. The dashboard entry point still awaits an on-device user test after restarting KOReader.
+This fixes 0.9.1's generic handoff, which used the normal local-download dialog and uploaded afterward without linking the uploaded BookOrbit record to the local file. Standalone Kindle Fetch retains that regular local-download route and its existing auto-upload setting. BookOrbit imports bypass the local-folder prompt and explicitly import even with standalone auto-upload off. Older Kindle Fetch versions cannot activate the new import action.
+
+Completed or pending source imports are reused; uncertain jobs are held for review. Files survive restart in the reader's `kindlefetch-imports` data folder and remain linked local reading copies after import. This is a reader-staged upload, not server-side URL fetching. If the local copy is removed, a future read may need a real download. If the reader restarts during the flow, the upload queue remains durable; revisit the same result to complete its local-link/open handoff after a queued upload finishes.
+
+See the [patch/upgrade guide](https://github.com/seshakiran/bookorbit-reading-stack/blob/main/docs/PLUGINS.md#search-z-library-from-the-bookorbit-dashboard). The original BookOrbit 1.5.5 catalog and the previous search-only patch are both supported by exact hash checks. Automated tests cover the new route; physical-reader verification is a separate step.
 
 ## Implemented
 

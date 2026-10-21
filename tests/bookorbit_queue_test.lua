@@ -7,7 +7,7 @@ package.preload['libs/libkoreader-lfs']=function()return {attributes=function(pa
 package.preload['ui/network/manager']=function()return {isConnected=function()return connected end}end
 package.preload['ui/uimanager']=function()return {}end
 package.preload['util.notifyutil']=function()return {info=function()end,error=function()end}end
-package.preload['util.guard']=function()return {quiet=function()end,wrap=function(_,fn)return fn end,scheduleIn=function(delay,_,fn)scheduled[#scheduled+1]={delay,fn}end}end
+package.preload['util.guard']=function()return {quiet=function()end,nextTick=function(_,fn)fn()end,wrap=function(_,fn)return fn end,scheduleIn=function(delay,_,fn)scheduled[#scheduled+1]={delay,fn}end}end
 local encoded
 package.preload.json=function()return {encode=function(v)encoded=v;return 'json' end,decode=function()return encoded end}end
 package.preload['ui/trapper']=function()return {wrap=function(_,fn)fn()end,dismissableRunInSubprocess=function(_,fn)return true,fn()end}end
@@ -38,5 +38,11 @@ files['/books/four.epub']={size=100,modification=4}; Queue.enqueue('/books/four.
 db.config.enabled=true; connected=false
 Queue.enqueue('/books/four.epub',{}); db.config.library_id=2; connected=true; Queue.kick(); assert(db.jobs[4].state=='pending')
 db.config.library_id=1; save_ok=false; Queue.kick(); assert(db.jobs[4].state=='pending' and not Queue.isActive())
+save_ok=true
+local notified=0
+Queue.watch(db.jobs[4],function(job)assert(job.state=='uploaded' and job.book_id);notified=notified+1 end)
+assert(notified==0)
+Queue.kick();assert(notified==1)
+Queue.kick();assert(notified==1)
 assert(saves>0)
 print('PASS: BookOrbit durable queue, offline retention, duplicate hashes, bounded safe retries, uncertain uploads held, destination binding, failed persistence blocks upload')

@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.10.0 — Import into BookOrbit before opening
+
+- Distinguish BookOrbit dashboard imports from standalone Kindle Fetch downloads.
+- Stage an explicit BookOrbit import, upload once, and open only after the confirmed server book ID is persisted.
+- Link the existing local copy to BookOrbit's book/file records so Open/Continue does not request a second transfer.
+- Reuse known pending/completed imports, including compatible older upload records; retain uncertain jobs for review.
+- Preserve standalone download prompts and the user's existing auto-upload setting.
+- Add a capability check and a hash-guarded upgrade from the previous BookOrbit dashboard patch.
+- Add importer, transfer-entry, completion-notification, context, and local-file linking regressions.
+
 ## 0.9.1 — Search from the BookOrbit reader dashboard
 
 - Expose an optional in-process search handoff for the BookOrbit reader search dialog.

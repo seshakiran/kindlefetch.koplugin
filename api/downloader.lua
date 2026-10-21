@@ -608,7 +608,7 @@ function Downloader:_startDownload(book, filepath, callback, retrying, failed_ur
             FileUtil.removeFile(part_path)
             ok, err = false, _("could not save the book")
         end
-        if ok then
+        if ok and not book.bookorbit_import then
             -- Enqueue only after validation and the final rename; upload failure never loses a local book.
             local called, queued, queue_err = pcall(BookOrbitQueue.enqueue, filepath, book)
             if not called or not queued then
@@ -762,6 +762,22 @@ function Downloader:downloadBook(book, filepath, callback, open_existing)
     end)
 
     prompt:show()
+end
+
+-- BookOrbit owns this explicit import: no regular download-folder prompt or automatic second enqueue.
+function Downloader:downloadForImport(book, filepath, callback)
+    if self.active_downloads[book.id] then
+        callback(false, _("This book is already downloading. Wait for it to finish."))
+        return
+    end
+    local err = self:cantDownloadTo(filepath)
+    if err then callback(false, err); return end
+    local import_book = {}
+    for key,value in pairs(book) do import_book[key]=value end
+    import_book.bookorbit_import=true
+    NetworkMgr:runWhenConnected(function()
+        self:_startDownloadInBackground(import_book,filepath,callback,false)
+    end)
 end
 
 -- each download whose book has started to download, whose curl can be stopped and started again

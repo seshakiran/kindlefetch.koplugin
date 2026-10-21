@@ -10,12 +10,27 @@ local Notify = require("util.notifyutil")
 local JSON = require("json")
 local Queue = {}
 local active, initialized, sleeping
+local watchers = {}
 
 local function target(config)
     return table.concat({config.server_url or "",config.username or "",tostring(config.library_id or "")},"\n")
 end
 local function configured(c)
     return c.server_url and c.access_token and tonumber(c.library_id)
+end
+function Queue.destination()
+    local store = Store.load()
+    return store and configured(store.config) and target(store.config) or nil
+end
+local function announce(job)
+    local callback = watchers[job]
+    if not callback then return end
+    if job.state == "uploaded" then watchers[job] = nil end
+    Guard.nextTick("finishing BookOrbit import", function() callback(job) end, Guard.quiet)
+end
+function Queue.watch(job, callback)
+    watchers[job] = callback
+    if job.state == "uploaded" or job.state == "failed" or job.state == "uncertain" then announce(job) end
 end
 function Queue.initialize()
     if initialized then return end
@@ -30,7 +45,7 @@ function Queue.initialize()
     Store.save()
 end
 
-function Queue.enqueue(path,book,manual)
+function Queue.enqueue(path,book,manual,opts)
     Queue.initialize()
     local store,err=Store.load()
     if not store then return nil,err end
@@ -41,15 +56,19 @@ function Queue.enqueue(path,book,manual)
     local destination=configured(store.config) and target(store.config) or nil
     for _,job in ipairs(store.jobs) do
         if job.path==path and job.size==size and job.modified==modified and job.target==destination then
-            Queue.kick(); return true
+            Queue.kick(); return true,nil,job
         end
     end
-    store.jobs[#store.jobs+1]={path=path,title=book and book.title or path:match("([^/]+)$"),size=size,
-        modified=modified,target=destination,state="pending",attempts=0,manual=manual==true}
+    opts = opts or {}
+    local job={path=path,title=book and book.title or path:match("([^/]+)$"),size=size,
+        modified=modified,target=destination,state="pending",attempts=0,manual=manual==true,
+        origin=opts.origin,source_id=opts.source_id or book and book.id and tostring(book.id),
+        file_type=opts.file_type or book and book.file_type}
+    store.jobs[#store.jobs+1]=job
     local ok; ok,err=Store.save()
     if not ok then return nil,err end
     Queue.kick()
-    return true
+    return true,nil,job
 end
 
 -- Runs only in a child: hash/stream large files without blocking reader input.
@@ -130,6 +149,7 @@ function Queue.kick()
             return
         end
         if job.state=="failed" or job.state=="uncertain" then Notify.info("BookOrbit upload needs attention. Open Kindle Fetch settings → BookOrbit.") end
+        if job.state=="uploaded" or job.state=="failed" or job.state=="uncertain" then announce(job) end
         Guard.scheduleIn(1,"sending next book to BookOrbit",Queue.kick,Guard.quiet)
     end,function()
         active=nil; job.state="uncertain"; job.error="Upload worker interrupted. Check BookOrbit before retrying."

@@ -147,14 +147,17 @@ end
 -- sent by the dispatcher actions, e.g. when a gesture is assigned to one
 -- (the search box, for the sites ticked in it last, or for one site, from the gestures for each there were before)
 function KindleFetch:onKindleFetch()
+    self.bookorbit_context = nil
     self:setupUI()
     return true
 end
 function KindleFetch:onKindleFetchArchive()
+    self.bookorbit_context = nil
     self:setupUI(nil, nil, { "zlib" })
     return true
 end
 function KindleFetch:onKindleFetchZlib()
+    self.bookorbit_context = nil
     self:setupUI(nil, nil, { "zlib" })
     return true
 end
@@ -209,7 +212,8 @@ function KindleFetch:init()
     -- load settings
     KindleFetchSettings:load()
     latest = self
-    self.bookorbit_search_handler = BookOrbitSearch.register(function(query)
+    self.bookorbit_search_handler = BookOrbitSearch.register(function(query, context)
+        self.bookorbit_context = context
         self:setupUI(query, nil, { "zlib" }, true)
     end)
     Guard.scheduleIn(0.2, "resuming BookOrbit uploads", BookOrbitQueue.onResume, Guard.quiet)
@@ -274,7 +278,7 @@ function KindleFetch:addToMainMenu(menu_items)
                 -- the sites ticked in it (see chooseSites)
                 text = _("Search"),
                 callback = function()
-                    self:setupUI()
+                    self:onKindleFetch()
                 end,
             },
             {
@@ -571,7 +575,7 @@ function KindleFetch:setupUI(query, scope, sources, search_now)
         },
     }
     self.search_box = InputDialog:new {
-        title = _("Search for books"),
+        title = self.bookorbit_context and _("Find a book to import into BookOrbit") or _("Search for books"),
         input = query,
         input_type = "text",
         buttons = buttons,
@@ -712,6 +716,7 @@ end
 -- ticked in it for: on one line, and only the start of it when it's long (see MAX_QUERY_LENGTH). narrowed down to scope
 -- (e.g. the books' authors), where given and the sites can be (see setupUI)
 function KindleFetch:searchFor(query, scope)
+    self.bookorbit_context = nil
     query = StringUtil.trim(query or ""):gsub("%s+", " ")
     if #query > MAX_QUERY_LENGTH then
         -- at a space, or otherwise between characters, rather than partway through one (whose next byte would carry
@@ -1247,7 +1252,8 @@ function KindleFetch:bookMenuItems(books)
                 text = self:bookItemText(book),
                 -- (where it's KOReader's own menu that lists them, see showBooks)
                 mandatory_func = function()
-                    return this:isDownloaded(book) and _("Downloaded") or nil
+                    if not this:isDownloaded(book) then return nil end
+                    return this.bookorbit_context and _("Imported") or _("Downloaded")
                 end,
                 callback = function()
                     this:downloadBook(book)
@@ -1569,7 +1575,12 @@ end
 function KindleFetch:isDownloaded(book)
     self.downloaded = self.downloaded or {}
     if self.downloaded[book.id] == nil then
-        self.downloaded[book.id] = FileUtil.isValidFile(buildDownloadPath(book)) or false
+        if self.bookorbit_context then
+            local job = require("api.bookorbitimport").find(book, buildDownloadPath(book))
+            self.downloaded[book.id] = job ~= nil and job.state == "uploaded"
+        else
+            self.downloaded[book.id] = FileUtil.isValidFile(buildDownloadPath(book)) or false
+        end
     end
     return self.downloaded[book.id]
 end
@@ -1818,6 +1829,7 @@ function KindleFetch:bookButtons(filepath, close)
 end
 
 function KindleFetch:downloadBook(book)
+    local import_context = self.bookorbit_context
     -- logging in first, where the site needs that, as a book found before logging out can't be downloaded until then,
     -- rather than its link being looked up only for Z-Library to say so
     local function downloadOnceLoggedIn()
@@ -1828,6 +1840,22 @@ function KindleFetch:downloadBook(book)
     end
 
     local filepath = buildDownloadPath(book)
+    if import_context then
+        UIManager:show(ConfirmBox:new {
+            text = T(_("Import %1 into BookOrbit and open it after the upload is confirmed?"), book.display_title or book.title),
+            ok_text = _("Import into BookOrbit"),
+            ok_callback = function()
+                require("api.bookorbitimport").start(book, filepath, {
+                    server_url = import_context.server_url,
+                    on_imported = function(job)
+                        self:closeSearch()
+                        import_context.on_imported(job)
+                    end,
+                })
+            end,
+        })
+        return
+    end
     Downloader:downloadBook(book, filepath, function(ok, err, saved_filepath)
         if ok then
             LogUtil.debug("downloaded book to", saved_filepath)
