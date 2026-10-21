@@ -11,7 +11,7 @@ A Z-Library-only plugin for KOReader, with direct downloads and native networkin
 ![KOReader](https://img.shields.io/badge/reader-KOReader-333333)
 [![License: MIT](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 
-[Install](#install) · [Use](#use) · [Troubleshooting](#troubleshooting) · [BookOrbit roadmap](docs/BOOKORBIT_ROADMAP.md)
+[Install](#install) · [Use](#use) · [BookOrbit dashboard search](#search-from-bookorbits-dashboard) · [Automatic uploads](#send-books-to-bookorbit) · [Troubleshooting](#troubleshooting) · [BookOrbit roadmap](docs/BOOKORBIT_ROADMAP.md)
 
 </div>
 
@@ -22,6 +22,7 @@ A Z-Library-only plugin for KOReader, with direct downloads and native networkin
 | One source | Searches **[z-library.sk](https://z-library.sk/)**. The Sites menu explicitly says **Z-Library**. |
 | Account access | Sign in from the plugin and use the account's download access. |
 | Search | Search by text, including author names; apply available language and file-format filters. |
+| BookOrbit dashboard search | The optional BookOrbit 1.5.5 reader patch adds **Search Z-Library** beside **Search library**, using Kindle Fetch 0.9.1+. |
 | Direct downloads | Fetch a selected book's download link and save the file to the configured reader folder. |
 | Native networking | DNS-over-HTTPS support works through KOReader's HTTP client, including devices without `curl`. |
 | Connection recovery | A native search interrupted by a connection-abort error gets one retry with refreshed DNS and a fresh request. |
@@ -32,7 +33,8 @@ Other providers are no longer registered or offered in search. Some unused provi
 
 ```mermaid
 flowchart LR
-    A[Search in KOReader] --> B[Z-Library]
+    A[Search in Kindle Fetch] --> B[Z-Library]
+    BO[BookOrbit dashboard: Search Z-Library] --> A
     B --> C[Download to reader]
     C --> D[Read in KOReader]
     C --> E[Saved upload queue]
@@ -108,6 +110,8 @@ With Kindle Fetch **0.9.1+** and the optional BookOrbit reader search patch inst
 Closing the Kindle Fetch search returns to the BookOrbit catalog underneath. Search results use Kindle Fetch's existing reader UI; this is not a server-side search integration or a web-dashboard change. Both reader plugins must be installed and enabled. Z-Library search is disabled in the BookOrbit dialog when the handoff is unavailable.
 
 The [BookOrbit patch and installation guide](https://github.com/seshakiran/bookorbit-reading-stack/blob/main/docs/PLUGINS.md#search-z-library-from-the-bookorbit-dashboard) cover the reviewed BookOrbit reader plugin **1.5.5**. The patch does not copy account settings or embed credentials. A future BookOrbit plugin update can replace the patched catalog file; reapply only against a supported version.
+
+The originating Viwoods reader has Kindle Fetch **0.9.1** and the BookOrbit **1.5.5** search patch installed. All **54 deployed files** were read back through OpenMTP and matched the reviewed payload byte for byte. Fully restart KOReader after installation to load the new action. This verifies the deployed files; the new dashboard entry point still needs an on-device user test. The underlying automatic download/upload flow was previously confirmed working.
 
 ## Send books to BookOrbit
 
