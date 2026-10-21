@@ -17,6 +17,7 @@ local Sources = require("api.sources")
 local CoverCache = require("cache.covercache")
 local Errors = require("util.errors")
 local Guard = require("util.guard")
+local BookOrbitQueue = require("api.bookorbitqueue")
 local T = require("ffi/util").template
 local _ = require("gettext")
 
@@ -606,6 +607,13 @@ function Downloader:_startDownload(book, filepath, callback, retrying, failed_ur
             LogUtil.warn("could not move the downloaded book from", part_path, "to", filepath)
             FileUtil.removeFile(part_path)
             ok, err = false, _("could not save the book")
+        end
+        if ok then
+            -- Enqueue only after validation and the final rename; upload failure never loses a local book.
+            local called, queued, queue_err = pcall(BookOrbitQueue.enqueue, filepath, book)
+            if not called or not queued then
+                require("util.notifyutil").error("Book saved locally, but BookOrbit could not queue it. Open BookOrbit uploads in settings.")
+            end
         end
         UIManager:forceRePaint()
         callback(ok, err, filepath)

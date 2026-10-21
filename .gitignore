@@ -8,6 +8,8 @@
 kindlefetch-diagnostics*.txt
 kindlefetch_*settings*.lua
 kindlefetch_*cache*.lua
+kindlefetch_bookorbit.json*
+settings.reader.lua*
 /native-readback/
 /verify-search/
 /device-check/

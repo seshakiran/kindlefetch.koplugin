@@ -170,6 +170,10 @@ function SettingsPage:settingsItems()
             end,
         },
         {
+            text = _("BookOrbit uploads"),
+            callback = function() require("ui.bookorbit").show() end,
+        },
+        {
             text = T(
                 _("Preferred Languages: %1"),
                 describeChosen(KindleFetchSettings:getAvailableLanguages(), languages)

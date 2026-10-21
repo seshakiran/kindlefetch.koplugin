@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.9.0 — BookOrbit uploads
+
+- Add native BookOrbit website sign-in, rotating sessions, and library selection.
+- Stream completed downloads to BookOrbit in a background subprocess; preserve local files.
+- Add a persistent queue, manual existing-book uploads, content-hash deduplication, bounded safe retries, and explicit review of interrupted transfers.
+- Reuse the installed BookOrbit plugin’s server address without reusing or exporting its sync key.
+- Add upload/session/queue regressions and document device setup and VPN requirements.
+
 ## 0.8.1 — Z-Library-only fork
 
 - Restrict active source registration and saved source selections to Z-Library; label the Sites menu accordingly.

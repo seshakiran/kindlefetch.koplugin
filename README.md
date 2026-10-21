@@ -4,10 +4,10 @@
 
 **Find a book. Bring it to your reader. Keep reading.**
 
-A Z-Library-only plugin for KOReader, with direct downloads and native networking fixes for Android readers.
+A Z-Library-only plugin for KOReader, with direct downloads and native networking fixes for Android readers and background uploads to your BookOrbit library.
 
 [![Checks](https://github.com/seshakiran/kindlefetch.koplugin/actions/workflows/checks.yml/badge.svg)](https://github.com/seshakiran/kindlefetch.koplugin/actions/workflows/checks.yml)
-![Version](https://img.shields.io/badge/version-0.8.1-blue)
+![Version](https://img.shields.io/badge/version-0.9.0-blue)
 ![KOReader](https://img.shields.io/badge/reader-KOReader-333333)
 [![License: MIT](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 
@@ -26,7 +26,7 @@ A Z-Library-only plugin for KOReader, with direct downloads and native networkin
 | Native networking | DNS-over-HTTPS support works through KOReader's HTTP client, including devices without `curl`. |
 | Connection recovery | A native search interrupted by a connection-abort error gets one retry with refreshed DNS and a fresh request. |
 | Diagnostics | Save a report to help investigate DNS, HTTP-client, and connection failures. |
-| BookOrbit uploads | **Planned.** No upload or website integration is implemented yet. |
+| BookOrbit uploads | Sign in to your BookOrbit website account, select a library, and upload completed downloads in the background. Existing local books can also be sent manually. |
 
 Other providers are no longer registered or offered in search. Some unused provider modules remain from upstream; they are not active sources. Old saved “All” selections resolve to Z-Library only.
 
@@ -35,7 +35,8 @@ flowchart LR
     A[Search in KOReader] --> B[Z-Library]
     B --> C[Download to reader]
     C --> D[Read in KOReader]
-    C -. Planned: authenticated upload .-> E[Your BookOrbit website]
+    C --> E[Saved upload queue]
+    E --> F[Your BookOrbit library]
 ```
 
 ## Install
@@ -93,23 +94,28 @@ sh scripts/check.sh
 python3 scripts/package.py
 ```
 
-The regression suite uses mocked network and account dependencies. It covers native DNS bootstrap, DNS response validation and caching, timeout restoration, bounded search-abort recovery, optional curl DNS fallback, and the fixed Z-Library source/account behavior. CI runs syntax and regression checks on **Lua 5.1 and 5.4** and builds the plugin package.
+The regression suite uses mocked network and account dependencies. It covers native DNS bootstrap, DNS response validation and caching, timeout restoration, bounded search-abort recovery, optional curl DNS fallback, the fixed Z-Library source/account behavior, BookOrbit session rotation, multipart streaming, and upload queue failure/recovery behavior. CI runs syntax and regression checks on **Lua 5.1 and 5.4** and builds the plugin package.
 
 Local live HTTP checks were also exercised during development. Those checks and the device deployment do not guarantee future Z-Library availability or API compatibility. See [CHANGELOG.md](CHANGELOG.md) for this fork's changes.
 
-## Next: BookOrbit
+## Send books to BookOrbit
 
-The next milestone is sending downloaded books to **BookOrbit on your personal website**, with visible upload status and duplicate protection.
+Open **Kindle Fetch → Settings → BookOrbit uploads**:
 
-- [x] Restrict active search to Z-Library.
-- [x] Add native encrypted DNS and bounded search recovery.
-- [x] Prepare source packaging and regression checks.
-- [ ] Verify the deployed BookOrbit version, authentication, and supported import mechanism.
-- [ ] Add a manual **Send to BookOrbit** action for a completed download.
-- [ ] Persist an upload queue, handle failures, and prevent duplicate imports.
-- [ ] Offer optional automatic upload after manual uploads are reliable.
+1. Choose **Account** and sign in with your **BookOrbit website username and password**. The server URL is filled from the installed BookOrbit plugin when available. Its sync username/key are separate credentials and cannot authorize file uploads.
+2. Choose the destination book library.
+3. Leave **Upload after download: On** to send new completed downloads automatically. Turn it off to stop automatic queueing/processing; manual uploads remain available.
+4. Use **Send an existing book** to browse and queue a book already on the reader.
 
-The [implementation roadmap](docs/BOOKORBIT_ROADMAP.md) records the proposed flow, open decisions, and acceptance checks. The companion deployment project is [bookorbit-reading-stack](https://github.com/seshakiran/bookorbit-reading-stack).
+The upload runs in a subprocess and streams the local file. Originals stay on the reader. The menu shows waiting, uploading, sent, failed, and interrupted states. Waiting jobs resume on startup, wake, and network reconnection. Temporary failures **before** the file POST get up to three attempts with backoff. Interrupted file transfers are held for review because BookOrbit may already have accepted them; check the website before choosing **Retry interrupted uploads**.
+
+For a Tailscale server, Tailscale must be connected and the server reachable when uploading. If Z-Library only works with Tailscale off, download first, then enable Tailscale and retry the waiting BookOrbit queue. An upload failure does not invalidate the local download.
+
+BookOrbit's native access/refresh session is stored in `kindlefetch_bookorbit.json` in KOReader's settings directory, alongside the persistent queue. The password is not stored. Keep this file private. HTTPS addresses and private LAN/Tailscale HTTP addresses are supported. Upload credentials are never sent to Z-Library or forwarded across redirects.
+
+Successful uploads require the server to return a `bookId`; metadata extraction can continue afterward. Content hashes prevent repeat uploads already recorded by this reader for the same account/library. This is not a global duplicate search of the whole server. A server-side filename conflict is reported for review.
+
+See the [BookOrbit integration notes and remaining roadmap](docs/BOOKORBIT_ROADMAP.md). The companion deployment project is [bookorbit-reading-stack](https://github.com/seshakiran/bookorbit-reading-stack).
 
 ## Credits & license
 

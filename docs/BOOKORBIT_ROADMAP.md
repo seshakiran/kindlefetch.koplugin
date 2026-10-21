@@ -1,65 +1,40 @@
-# From reader to BookOrbit
+# BookOrbit integration
 
-**Status: planned.** The current plugin searches Z-Library and saves files locally. This document defines the next milestone; the plugin does not currently upload books or modify the website.
+Version **0.9.0** implements a native BookOrbit client and persistent upload queue. Device sign-in and a destination library are required before files can be sent. Network/account availability still determines whether a live transfer succeeds.
 
-The destination is the personal BookOrbit deployment associated with [bookorbit-reading-stack](https://github.com/seshakiran/bookorbit-reading-stack). Its exact base URL and deployed import capabilities must be confirmed before implementation.
+## Implemented
 
-## Intended experience
+- Reuse the server URL saved by the installed BookOrbit plugin; keep its sync credentials separate.
+- Sign in using the BookOrbit website account with `POST /api/v1/auth/login`, `clientKind: native`, and refresh rotating native sessions through `/auth/refresh`.
+- List book libraries through `GET /api/v1/libraries`.
+- Stream a multipart `file` to `POST /api/v1/libraries/:id/upload` with the native bearer token. No curl dependency, credential redirects, or whole-book buffering.
+- Queue only after a downloaded book passes the existing checks and is renamed to its final local path.
+- Offer a local file browser for manually sending existing books.
+- Persist destination/account binding, queue state, content hash, and returned book ID. Keep originals on the reader.
+- Skip repeated content already recorded as uploaded to the same account/library on this reader.
+- Retry safe preflight failures up to three times with backoff. Hold interrupted/ambiguous file POSTs until the user checks BookOrbit and explicitly retries.
+- Resume pending work after startup, wake, and network reconnection. Treat jobs interrupted by restart as uncertain.
 
-After a successful download, choose **Send to BookOrbit**. The plugin queues the local file, sends it through an authenticated connection, and shows whether BookOrbit accepted and imported it. Keep the original file on the reader. A failed upload must not prevent reading locally.
+The direct upload API returns a book record before all asynchronous metadata work finishes. The plugin reports “Sent” after a confirmed book ID; it does not claim all metadata processing has finished.
 
-```mermaid
-flowchart TD
-    A[Completed local download] --> B[Manual Send to BookOrbit]
-    B --> C[Persistent upload queue]
-    C --> D[Authenticated HTTPS transfer]
-    D --> E[BookOrbit import]
-    E --> F[Confirm server book ID and status]
-    D -->|Offline or failed| G[Visible failure and retry]
-    G --> C
-```
+## Authentication and deployment
 
-## 1 · Confirm the server contract
+BookOrbit's KOReader sync headers (`x-auth-user` / `x-auth-key`) are not accepted by the library-upload API. The upload client uses a separate native web-account session. Passwords remain transient; access and refresh tokens stay in the private device settings file. No tokens, personal server addresses, device reports, or books belong in this public repository.
 
-- Identify the deployed BookOrbit version, website base URL, and authentication method.
-- Verify whether it exposes a supported upload/import API, including request format, size limits, accepted file types, and import-status responses.
-- If direct upload is unavailable, evaluate a small authenticated bridge that stages files into a BookOrbit watched media folder. The deployment stack documents watched-folder imports; this still needs verification against the running installation.
-- Record the confirmed contract and a small end-to-end import example before building the plugin client. Do not invent an API path or treat file transfer as proof of a completed import.
+A private Tailscale deployment needs Tailscale active during upload. Z-Library and BookOrbit may need different VPN conditions: queue downloads locally, then connect to the server's network to upload. HTTPS and private IPv4 HTTP deployments are supported. No server patch or watched-folder bridge is required for the supported API.
 
-## 2 · Ship a manual upload
+## Validation
 
-- Add local settings for the BookOrbit base URL and a separate, scoped authentication credential.
-- Offer **Send to BookOrbit** only for completed, existing local files.
-- Send the file and supported metadata: title, author, format, and source identifier where available.
-- Show queued, uploading, imported, and failed states; retain the server's book identifier or import-job identifier.
-- Open the resulting BookOrbit book link when the server provides one.
+Mocked tests cover native login and refresh rotation, response limits, origin restrictions, multipart framing/length, timeout restoration, offline retention, hash-based duplicate suppression, destination binding, bounded preflight retries, ambiguous POST handling, and failed persistence blocking transfers. CI runs these alongside Z-Library regressions on Lua 5.1 and 5.4.
 
-BookOrbit credentials belong in private device settings. Never forward a Z-Library session cookie or account key to BookOrbit. Never commit endpoints containing credentials, tokens, device settings, or downloaded books to this public repository.
+A live deployment still needs a signed-in device transfer checked in the destination library. A browser login alone does not provision the reader's separate upload session.
 
-## 3 · Make it dependable
+## Remaining improvements
 
-- Persist queue state across KOReader restarts and network changes.
-- Identify duplicates using a content hash and the server's supported idempotency or lookup mechanism.
-- Use bounded retries with backoff for temporary failures; expose authentication and permanent errors for user action.
-- Support resumable uploads only if the server explicitly supports them; otherwise retry safely without creating duplicate imports.
-- Retain the local original after upload and expose clear retry/cancel controls.
-- Test with Tailscale on and off, especially when the personal deployment requires a private network route.
+- [ ] Resumable chunk/session uploads for very large books, once compatibility with the deployed server is verified.
+- [ ] Server-wide duplicate lookup and reconciliation for ambiguous transfers.
+- [ ] Per-file byte progress and a detailed queue history screen.
+- [ ] Explicit import-job/metadata-completion tracking if the server exposes a suitable API.
+- [ ] OIDC-only account pairing where password login is disabled.
 
-## 4 · Add optional automation
-
-Once manual uploads are reliable, add an opt-in **Upload after download** setting. Keep visible queue status, duplicate protection, and manual retry available. Automatic upload should begin only after a successful local download.
-
-## Acceptance checks
-
-| Scenario | Expected result |
-| --- | --- |
-| Valid supported book | One imported BookOrbit entry with correct title/author and a readable file. |
-| Same file sent twice | Existing entry reused or duplicate explicitly reported. |
-| Reader offline | Local book remains usable; pending upload can be retried. |
-| Restart while queued/uploading | Queue recovers without silently losing the job or duplicating the import. |
-| Expired credential | Clear authentication error; no endless retries. |
-| Server rejects format or size | Actionable error; original file retained. |
-| Interrupted transfer or import failure | Failure stays visible; transfer success alone is not shown as import success. |
-| VPN/DNS route changes | Bounded failure/recovery and useful diagnostics without exposing credentials. |
-
-No website changes or upload implementation are included in the current milestone.
+Companion deployment: [bookorbit-reading-stack](https://github.com/seshakiran/bookorbit-reading-stack). Protocol source: BookOrbit's [upload controller](https://github.com/bookorbit/bookorbit/blob/main/server/src/modules/upload/upload.controller.ts), [authentication controller](https://github.com/bookorbit/bookorbit/blob/main/server/src/modules/auth/auth.controller.ts), and [authentication service](https://github.com/bookorbit/bookorbit/blob/main/server/src/modules/auth/auth.service.ts).
