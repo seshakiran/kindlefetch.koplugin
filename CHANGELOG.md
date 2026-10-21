@@ -7,6 +7,7 @@
 - Add a persistent queue, manual existing-book uploads, content-hash deduplication, bounded safe retries, and explicit review of interrupted transfers.
 - Reuse the installed BookOrbit plugin’s server address without reusing or exporting its sync key.
 - Add upload/session/queue regressions and document device setup and VPN requirements.
+- Record user-confirmed manual and automatic uploads on Viwoods AiPaper Mini (October 20, 2026), with Tailscale left connected, no exit node, Tailscale DNS disabled, and Kindle Fetch encrypted DNS enabled.
 
 ## 0.8.1 — Z-Library-only fork
 

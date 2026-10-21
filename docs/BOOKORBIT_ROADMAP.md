@@ -21,13 +21,17 @@ The direct upload API returns a book record before all asynchronous metadata wor
 
 BookOrbit's KOReader sync headers (`x-auth-user` / `x-auth-key`) are not accepted by the library-upload API. The upload client uses a separate native web-account session. Passwords remain transient; access and refresh tokens stay in the private device settings file. No tokens, personal server addresses, device reports, or books belong in this public repository.
 
-A private Tailscale deployment needs Tailscale active during upload. Z-Library and BookOrbit may need different VPN conditions: queue downloads locally, then connect to the server's network to upload. HTTPS and private IPv4 HTTP deployments are supported. No server patch or watched-folder bridge is required for the supported API.
+A private Tailscale deployment needs Tailscale active during upload. The originating reader now accesses both services with Tailscale left connected: Exit node **None**, **Use Tailscale DNS** off on the reader, and Kindle Fetch **Encrypted DNS** enabled. The saved BookOrbit URL uses a numeric tailnet address. Keep KOReader included in Tailscale; both plugins run in that application. See the [working setup](../README.md#working-tailscale-setup), including hostname and retry limits.
+
+HTTPS and private IPv4 HTTP deployments are supported. No server patch or watched-folder bridge is required for the supported API.
 
 ## Validation
 
 Mocked tests cover native login and refresh rotation, response limits, origin restrictions, multipart framing/length, timeout restoration, offline retention, hash-based duplicate suppression, destination binding, bounded preflight retries, ambiguous POST handling, and failed persistence blocking transfers. CI runs these alongside Z-Library regressions on Lua 5.1 and 5.4.
 
-A live deployment still needs a signed-in device transfer checked in the destination library. A browser login alone does not provision the reader's separate upload session.
+On **October 20, 2026**, the user confirmed both a manual existing-book upload and a subsequent automatic upload after a new download on the originating **Viwoods AiPaper Mini**. After applying the Tailscale settings above, the downloaded book appeared in BookOrbit without a manual upload action or VPN toggle. The deployed plugin was version **0.9.0**; all 52 installed package files had been read back and matched the source package byte for byte.
+
+This confirms the original device/server workflow, not fresh-install compatibility across all devices. A browser login alone does not provision the reader's separate upload session. Metadata completion, long-duration transfers, and every failure/recovery scenario have not been established by this live test.
 
 ## Remaining improvements
 

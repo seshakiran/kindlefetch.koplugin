@@ -109,7 +109,23 @@ Open **Kindle Fetch → Settings → BookOrbit uploads**:
 
 The upload runs in a subprocess and streams the local file. Originals stay on the reader. The menu shows waiting, uploading, sent, failed, and interrupted states. Waiting jobs resume on startup, wake, and network reconnection. Temporary failures **before** the file POST get up to three attempts with backoff. Interrupted file transfers are held for review because BookOrbit may already have accepted them; check the website before choosing **Retry interrupted uploads**.
 
-For a Tailscale server, Tailscale must be connected and the server reachable when uploading. If Z-Library only works with Tailscale off, download first, then enable Tailscale and retry the waiting BookOrbit queue. An upload failure does not invalidate the local download.
+### Working Tailscale setup
+
+**Confirmed on the originating Viwoods AiPaper Mini on October 20, 2026:** a book downloaded through Kindle Fetch appeared automatically in BookOrbit after applying this setup:
+
+1. Leave **Tailscale connected** on the reader and BookOrbit server.
+2. Set the reader's Tailscale **Exit node** to **None**.
+3. Turn off **Use Tailscale DNS** on the reader, if available.
+4. Leave Kindle Fetch's **Encrypted DNS** enabled.
+5. Keep **Upload after download: On**, with the BookOrbit account and destination library selected.
+
+This lets Z-Library use the normal internet connection while BookOrbit remains reachable through the tailnet. Keep KOReader included in Tailscale: excluding the application also excludes its BookOrbit uploads. The confirmed BookOrbit connection uses a saved numeric tailnet address, so it does not depend on MagicDNS. If your server URL uses a tailnet hostname, check that it still resolves before disabling Tailscale DNS.
+
+No VPN toggle or manual **Send** action was needed in the confirmed download → automatic upload test. This is a user-confirmed result on the original setup, not a guarantee for every VPN, network, or device. See Tailscale's [exit-node behavior](https://tailscale.com/docs/features/exit-nodes), [DNS preferences](https://tailscale.com/docs/features/client/manage-preferences), and [Android app split tunneling](https://tailscale.com/docs/features/client/android-app-split-tunneling).
+
+If the server is unreachable, the local book remains available. Safe preflight failures get up to three attempts; after those fail, restore connectivity and use **Retry waiting/failed uploads**. The plugin does not turn Tailscale on or off.
+
+### Storage and upload confirmation
 
 BookOrbit's native access/refresh session is stored in `kindlefetch_bookorbit.json` in KOReader's settings directory, alongside the persistent queue. The password is not stored. Keep this file private. HTTPS addresses and private LAN/Tailscale HTTP addresses are supported. Upload credentials are never sent to Z-Library or forwarded across redirects.
 
