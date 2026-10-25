@@ -22,7 +22,7 @@ A Z-Library-only plugin for KOReader, with direct downloads and native networkin
 | One source | Searches **[z-library.sk](https://z-library.sk/)**. The Sites menu explicitly says **Z-Library**. |
 | Account access | Sign in from the plugin and use the account's download access. |
 | Search | Search by text, including author names; apply available language and file-format filters. |
-| BookOrbit dashboard search | The optional BookOrbit 1.5.5 reader patch adds **Search Z-Library** beside **Search library**, using Kindle Fetch 0.10.0+ to import into BookOrbit before opening. |
+| BookOrbit dashboard search | The optional BookOrbit 2.0.0 reader patch (also available for 1.5.5) adds **Search Z-Library** beside **Search library**, using Kindle Fetch 0.10.0+ to import into BookOrbit before opening. |
 | Direct downloads | Fetch a selected book's download link and save the file to the configured reader folder. |
 | Native networking | DNS-over-HTTPS support works through KOReader's HTTP client, including devices without `curl`. |
 | Connection recovery | A native search interrupted by a connection-abort error gets one retry with refreshed DNS and a fresh request. |
@@ -108,9 +108,11 @@ Local live HTTP checks were also exercised during development. Those checks and 
 
 ## Search and import from BookOrbit's dashboard
 
+**October 25 update:** the companion patch now supports BookOrbit reader **2.0.0**, shipped with BookOrbit **v3.5.0**, including its new search panel. Install the complete new BookOrbit plugin when upgrading from 1.5.5, apply the matching guarded patch, and restart KOReader. The upload/import behavior is unchanged. The new version passed mocked integration checks and was installed with byte-verified readback; its physical-reader test is pending. The live result below refers to 1.5.5.
+
 **Verified on October 20, 2026:** the user confirmed on the originating Viwoods AiPaper Mini that the book uploads and opens, and opening it again does **not** show a second download prompt. Kindle Fetch **0.10.0** and the companion BookOrbit **1.5.5** catalog patch were installed; all **55** payload files matched the source on readback.
 
-With Kindle Fetch **0.10.0+** and the updated BookOrbit reader **1.5.5** patch, tap the dashboard's search icon and enter a title or author:
+With Kindle Fetch **0.10.0+** and the updated BookOrbit reader **2.0.0** patch (or the supported **1.5.5** patch), tap the dashboard's search icon and enter a title or author:
 
 - **Search library** searches the existing BookOrbit library, preserving its scope and recent searches.
 - **Search Z-Library** finds books using Kindle Fetch's Z-Library account, filters, and networking fixes. Select a result and choose **Import into BookOrbit**.
