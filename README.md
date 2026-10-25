@@ -108,7 +108,11 @@ Local live HTTP checks were also exercised during development. Those checks and 
 
 ## Search and import from BookOrbit's dashboard
 
-**October 25 update:** the companion patch now supports BookOrbit reader **2.0.0**, shipped with BookOrbit **v3.5.0**, including its new search panel. Install the complete new BookOrbit plugin when upgrading from 1.5.5, apply the matching guarded patch, and restart KOReader. The upload/import behavior is unchanged. The new version passed mocked integration checks and was installed with byte-verified readback; its physical-reader test is pending. The live result below refers to 1.5.5.
+**October 25 update:** the companion patch now supports BookOrbit reader **2.0.0**, shipped with BookOrbit **v3.5.0**, including its new search panel. Install the complete new BookOrbit plugin when upgrading from 1.5.5, apply the matching guarded patch, and restart KOReader. The upload/import behavior is unchanged. The new version passed mocked integration checks and byte-verified installation.
+
+**Confirmed working on the Viwoods AiPaper Mini — October 25, 2026:** after restarting KOReader, the user confirmed **“Both SimpleUI and import work.”** The tested setup is **SimpleUI 3.0.0 + BookOrbit reader plugin 2.0.0 with the Z-Library import patch + Kindle Fetch 0.10.0**. The test covered the SimpleUI home screen and a BookOrbit Z-Library import that uploads, opens, and reopens without a second download prompt. All **385 installed application files** had been read back and matched the prepared packages byte for byte.
+
+The earlier October 20 result below refers to plugin 1.5.5.
 
 **Verified on October 20, 2026:** the user confirmed on the originating Viwoods AiPaper Mini that the book uploads and opens, and opening it again does **not** show a second download prompt. Kindle Fetch **0.10.0** and the companion BookOrbit **1.5.5** catalog patch were installed; all **55** payload files matched the source on readback.
 
