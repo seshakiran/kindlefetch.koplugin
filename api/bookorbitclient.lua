@@ -33,7 +33,9 @@ function Client:request(method, path, body, source, length, content_type)
         return nil, "Invalid BookOrbit address", 0
     end
     local headers = {Accept="application/json", Connection="close"}
-    if self.config.access_token then headers.Authorization = "Bearer " .. self.config.access_token end
+    if self.config.access_token and path ~= "/auth/login" and path ~= "/auth/refresh" then
+        headers.Authorization = "Bearer " .. self.config.access_token
+    end
     if body then
         body = JSON.encode(body)
         source, length, content_type = ltn12.source.string(body), #body, "application/json"
@@ -75,6 +77,11 @@ function Client:adoptSession(data)
     end
     self.config.access_token = data.accessToken
     if type(data.refreshToken) == "string" then self.config.refresh_token = data.refreshToken end
+    self.config.session_refreshed_at = os.time()
+    self.config.session_reauth_required = nil
+    self.config.session_error = nil
+    self.config.session_retry_at = nil
+    self.config.session_failures = nil
     return true
 end
 
@@ -90,17 +97,25 @@ function Client:login(username, password)
 end
 
 function Client:refresh()
-    if not self.config.refresh_token then return nil, "Sign in to BookOrbit" end
-    local data, err = self:request("POST", "/auth/refresh", {refreshToken=self.config.refresh_token})
-    if not data then return nil, err end
-    return self:adoptSession(data)
+    if not self.config.refresh_token then return nil, "Sign in to BookOrbit", 401 end
+    local data, err, code = self:request("POST", "/auth/refresh", {refreshToken=self.config.refresh_token})
+    if not data then
+        if code == 401 or code == 403 then
+            self.config.session_reauth_required = true
+            self.config.session_error = err
+        end
+        return nil, err, code
+    end
+    local ok; ok, err = self:adoptSession(data)
+    return ok, err, ok and code or 0
 end
 
 function Client:authorized(method, path)
     local data, err, code = self:request(method, path)
     if code == 401 and self.config.refresh_token then
-        local refreshed; refreshed, err = self:refresh()
-        if not refreshed then return nil, err, 401 end
+        local refreshed, refresh_code; refreshed, err, refresh_code = self:refresh()
+        -- A network outage during refresh is retryable, not an expired login.
+        if not refreshed then return nil, err, refresh_code end
         return self:request(method, path)
     end
     return data, err, code

@@ -105,12 +105,15 @@ function UI.show()
     local store,err=Store.load()
     if not store then Notify.error(err); return end
     local counts={pending=0,uploading=0,uploaded=0,failed=0,uncertain=0}
-    local last_error
+    local last_error=store.config.session_error
     for _,job in ipairs(store.jobs) do counts[job.state]=(counts[job.state] or 0)+1; last_error=job.error or last_error end
     local menu
     local function close() UIManager:close(menu) end
     local items={
         {text="Account: "..(store.config.username or "Sign in required"),callback=function() close(); UI.login() end},
+        {text="Login renewal: "..((store.config.session_reauth_required or not store.config.refresh_token) and "Sign in required" or store.config.session_retry_at and "Waiting for connection/retry" or "Automatic"),callback=function()
+            Notify.message(store.config.session_error or "Your BookOrbit native session renews automatically while KOReader is awake and connected. A revoked or already-expired refresh session still needs sign-in. Your password is not stored.")
+        end},
         {text="Library: "..(store.config.library_name or "Choose a library"),callback=function() close(); UI.chooseLibrary() end},
         {text="Upload after download: "..(store.config.enabled==false and "Off" or "On"),callback=function()
             store.config.enabled=store.config.enabled==false

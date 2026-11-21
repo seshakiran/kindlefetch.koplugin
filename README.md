@@ -160,6 +160,10 @@ If the server is unreachable, the local book remains available. Safe preflight f
 
 BookOrbit's native access/refresh session is stored in `kindlefetch_bookorbit.json` in KOReader's settings directory, alongside the persistent queue. The password is not stored. Keep this file private. HTTPS addresses and private LAN/Tailscale HTTP addresses are supported. Upload credentials are never sent to Z-Library or forwarded across redirects.
 
+**Automatic login renewal (0.10.1+):** with automatic uploads enabled, Kindle Fetch renews the native BookOrbit session about every six hours while KOReader is awake and connected, even if no books are waiting. Startup, wake and network reconnection also check whether renewal is due. Explicit BookOrbit imports renew when due even if standalone automatic uploads are off. It does not turn on Wi-Fi or Tailscale, and it does not store your password.
+
+The **BookOrbit uploads** menu shows **Login renewal: Automatic**, **Waiting for connection/retry**, or **Sign in required**. Temporary connection/server failures retry with backoff. If the reader stays offline past the server's refresh-session lifetime, or the server revokes the session, sign in again through **Account**, select the library and retry waiting/failed uploads. Retained downloaded files are reused; interrupted uploads still require checking the server before retrying. Renewal keeps an active rolling session alive; it cannot restore credentials the server has already invalidated.
+
 Successful uploads require the server to return a `bookId`; metadata extraction can continue afterward. Content hashes prevent repeat uploads already recorded by this reader for the same account/library. This is not a global duplicate search of the whole server. A server-side filename conflict is reported for review.
 
 See the [BookOrbit integration notes and remaining roadmap](docs/BOOKORBIT_ROADMAP.md). The companion deployment project is [bookorbit-reading-stack](https://github.com/seshakiran/bookorbit-reading-stack).

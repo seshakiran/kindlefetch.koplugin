@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.10.1 — Keep BookOrbit upload sessions renewed
+
+- Renew the native BookOrbit session about every six hours while KOReader is awake, connected, and automatic uploads are enabled, even when no upload is queued.
+- Check renewal on startup, wake, network reconnection, and explicit imports; serialize it with upload/account operations and persist rotated tokens atomically.
+- Preserve transient refresh-network/server failures as retryable errors instead of misreporting them as an expired login.
+- Pause on a definitively expired/revoked refresh session and show its status in BookOrbit uploads. Passwords remain unstored; long offline periods or server revocation can still require sign-in.
+- Keep interrupted uploads held for review and let an in-flight short renewal finish on suspend so its rotated token can be saved.
+
 ## 0.10.0 — Import into BookOrbit before opening
 
 - Distinguish BookOrbit dashboard imports from standalone Kindle Fetch downloads.

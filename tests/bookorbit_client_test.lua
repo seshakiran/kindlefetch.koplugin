@@ -38,6 +38,27 @@ responses={{code=401,data={}},{code=200,data={accessToken='access-two',refreshTo
  {code=200,data={{id=1,name='Books',type='books'},{id=2,name='Podcasts',type='podcasts'}}}}
 local libraries=assert(client:libraries()); assert(#libraries==1 and libraries[1].id==1)
 assert(client.config.refresh_token=='refresh-two' and requests[4].opts.headers.Authorization=='Bearer access-two')
+assert(requests[3].opts.headers.Authorization==nil)
+assert(client.config.session_refreshed_at and not client.config.session_reauth_required)
+local expiring=Client.new({server_url='https://books.example/api/v1',access_token='expired',refresh_token='refresh-valid'})
+for _,response in ipairs({{network=true},{code=503,data={}}}) do
+ responses={{code=401,data={}},response}
+ local data,renew_err,code=expiring:authorized('GET','/auth/me')
+ assert(not data and renew_err and code==(response.network and 0 or 503))
+ assert(not expiring.config.session_reauth_required)
+end
+responses={{code=401,data={}},{code=401,data={message='private'}}}
+local data,renew_err,code=expiring:authorized('GET','/auth/me')
+assert(not data and code==401 and expiring.config.session_reauth_required)
+assert(not renew_err:find('private',1,true))
+responses={{code=200,data={accessToken='new-access',refreshToken='new-refresh'}}}
+assert(expiring:login('test-user','test-password'))
+assert(requests[#requests].opts.headers.Authorization==nil)
+assert(not expiring.config.session_reauth_required and not expiring.config.session_error)
+assert(expiring.config.refresh_token=='new-refresh' and expiring.config.session_refreshed_at)
+responses={{code=200,data={}}}
+local renewed,_,bad_code=expiring:refresh()
+assert(not renewed and bad_code==0) -- malformed renewal is retryable, not a rejected login
 local path=os.tmpname()..'.epub'; local f=assert(io.open(path,'wb')); f:write('PK\3\4',string.rep('book-content',20000)); f:close()
 client.config.library_id=1
 responses={{code=201,data={bookId=123}}}

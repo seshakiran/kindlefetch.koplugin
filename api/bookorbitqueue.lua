@@ -11,12 +11,87 @@ local JSON = require("json")
 local Queue = {}
 local active, initialized, sleeping
 local watchers = {}
+local SESSION_INTERVAL = 6 * 60 * 60
+local session_timer_at
+local SESSION_FIELDS = {"access_token", "refresh_token", "session_refreshed_at",
+    "session_reauth_required", "session_error", "session_retry_at", "session_failures"}
 
 local function target(config)
     return table.concat({config.server_url or "",config.username or "",tostring(config.library_id or "")},"\n")
 end
 local function configured(c)
     return c.server_url and c.access_token and tonumber(c.library_id)
+end
+local function copySession(into, from)
+    for _,key in ipairs(SESSION_FIELDS) do into[key] = from[key] end
+end
+local function armSession(delay)
+    local at = os.time() + math.max(1, delay)
+    if session_timer_at and session_timer_at <= at then return end
+    session_timer_at = at
+    Guard.scheduleIn(math.max(1,delay), "renewing BookOrbit session", function()
+        if session_timer_at ~= at then return end
+        session_timer_at = nil
+        Queue.kick()
+    end, Guard.quiet)
+end
+
+-- Keep a rolling native session alive even between uploads. Use the same
+-- worker lock as uploads/account changes, and never turn networking on.
+local function renewSession(store)
+    local destination = target(store.config)
+    local config = {}
+    for k,v in pairs(store.config) do config[k] = v end
+    local widget = {}
+    active = {kind="session", widget=widget}
+    local function failed(error_text, code)
+        store.config.session_error = error_text
+        if code == 401 or code == 403 then
+            if not store.config.session_reauth_required then
+                Notify.info("BookOrbit session was revoked or expired. Sign in again under Kindle Fetch → Settings → BookOrbit uploads.")
+            end
+            store.config.session_reauth_required = true
+        else
+            local n = (store.config.session_failures or 0) + 1
+            store.config.session_failures = n
+            local delay = n <= 3 and 30 * 2^(n-1) or 3600
+            store.config.session_retry_at = os.time() + delay
+            armSession(delay)
+        end
+    end
+    Trapper:wrap(Guard.wrap("renewing BookOrbit login",function()
+        local completed,encoded = Trapper:dismissableRunInSubprocess(function()
+            local ok,result,err,code = pcall(function()
+                local refreshed,refresh_err,refresh_code = Client.new(config):refresh()
+                return refreshed,refresh_err,refresh_code
+            end)
+            return JSON.encode({ok=ok and result or false, error=ok and err or "BookOrbit session renewal interrupted",
+                code=ok and code or 0, config=config})
+        end,widget,true)
+        widget.dismiss_callback = nil
+        active = nil
+        if target(store.config) ~= destination then return end
+        local decoded,result = pcall(JSON.decode,encoded or "")
+        if completed and decoded and type(result)=="table" and result.ok then
+            copySession(store.config,result.config)
+        else
+            failed(completed and decoded and type(result)=="table" and result.error or "BookOrbit session renewal interrupted",
+                completed and decoded and type(result)=="table" and result.code or 0)
+        end
+        if not Store.save() then
+            Notify.error("Could not save renewed BookOrbit login. Keep KOReader open and check storage before restarting.")
+            return
+        end
+        if not store.config.session_reauth_required and not store.config.session_retry_at then
+            Guard.nextTick("resuming BookOrbit uploads",Queue.kick,Guard.quiet)
+        end
+    end,function()
+        active=nil
+        if target(store.config)==destination then
+            failed("BookOrbit session renewal interrupted",0)
+            Store.save()
+        end
+    end))
 end
 function Queue.destination()
     local store = Store.load()
@@ -108,6 +183,14 @@ function Queue.kick()
             next_wait=next_wait and math.min(next_wait,wait) or wait
         end
     end
+    -- Explicit imports still renew when automatic uploads are switched off.
+    if store.config.refresh_token and (store.config.enabled~=false or job) then
+        if store.config.session_reauth_required then return end
+        local due = store.config.session_retry_at or
+            ((tonumber(store.config.session_refreshed_at) or 0) + SESSION_INTERVAL)
+        if due <= now then renewSession(store); return end
+        armSession(due-now)
+    end
     if not job then
         if next_wait then Guard.scheduleIn(math.max(1,next_wait),"retrying BookOrbit queue",Queue.kick,Guard.quiet) end
         return
@@ -131,8 +214,7 @@ function Queue.kick()
         else
             -- Save a rotated session only when the account/destination did not change meanwhile.
             if result.config and target(store.config)==job.target then
-                store.config.access_token=result.config.access_token
-                store.config.refresh_token=result.config.refresh_token
+                copySession(store.config,result.config)
             end
             job.hash=result.hash or job.hash; job.error=result.error
             if result.book_id then
@@ -170,7 +252,8 @@ function Queue.retry(include_uncertain)
 end
 function Queue.onSuspend()
     sleeping=true
-    if active and active.widget.dismiss_callback then active.widget.dismiss_callback() end
+    -- Let a short token rotation finish so its replacement token can be saved.
+    if active and active.kind~="session" and active.widget.dismiss_callback then active.widget.dismiss_callback() end
 end
 function Queue.onResume() sleeping=false; Queue.kick() end
 function Queue.stop()
