@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.10.2 — community marketplace support
+
+- Document App Store installation, repository matching and updates.
+- Keep a stable plugin identifier and explicit metadata version for update detection.
+
 ## 0.10.1 — Keep BookOrbit upload sessions renewed
 
 - Renew the native BookOrbit session about every six hours while KOReader is awake, connected, and automatic uploads are enabled, even when no upload is queued.

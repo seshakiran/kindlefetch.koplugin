@@ -1,7 +1,7 @@
 local _ = require("gettext")
 return {
+    name = "kindlefetch",
     fullname = _("Kindle Fetch"),
-    description = _(
-        [[Search Z-Library and download books directly to your reader.]]
-    ),
+    version = "0.10.2",
+    description = _("Search Z-Library, download books, and optionally upload to your BookOrbit library."),
 }

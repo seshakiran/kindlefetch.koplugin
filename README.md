@@ -15,6 +15,17 @@ A Z-Library-only plugin for KOReader, with direct downloads and native networkin
 
 </div>
 
+## Install and update through the community App Store
+
+In [KOReader App Store](https://github.com/omer-faruq/appstore.koplugin), open **Tools → App Store → Plugins**, refresh the catalogue, and search for **Kindle Fetch** or filter by owner **seshakiran**. Select **seshakiran/kindlefetch.koplugin** and choose **Install**, then fully restart KOReader. If the entry is missing from a cached catalogue, use **Plugins → ⚙ → Install plugin from URL** and enter `https://github.com/seshakiran/kindlefetch.koplugin`.
+
+For updates, open **App Store → Check plugin updates** and select this plugin. For a manually installed copy, use **Match with URL** once to associate it with the repository above. Update the existing installation and restart KOReader; do not create a second plugin folder. Release assets and repository archives both identify the same runtime folder, `kindlefetch.koplugin`.
+
+Kindle Fetch 0.10.1 and earlier did not expose a version in `_meta.lua`. If an older manual installation is not flagged for update after matching, select the current release explicitly or **Reinstall** once; version tracking works from 0.10.2 onward.
+
+BookOrbit is optional and needs its own configured server/account. Updating the plugin retains settings and the BookOrbit upload queue outside the plugin folder. Login renewal remains automatic while KOReader is running and connected; use books you are authorized to download.
+
+
 ## What works today
 
 | Feature | Current behavior |

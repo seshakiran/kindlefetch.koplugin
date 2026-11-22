@@ -10,6 +10,7 @@ find api cache settings ui updater util tests -name '*.lua' -exec sh -c '
     done
 ' sh {} +
 "$LUAC_BIN" -p main.lua kindlefetch.lua safemode.lua _meta.lua
+"$LUA_BIN" scripts/check-marketplace.lua _meta.lua kindlefetch version.txt
 "$LUA_BIN" tests/native_dns_test.lua
 "$LUA_BIN" tests/curl_dns_test.lua
 "$LUA_BIN" tests/zlib_account_test.lua
